@@ -1,0 +1,34 @@
+{
+  "bugs": {
+    "url": "https://github.com/danTapps/homebridge-hubitat-hubconnect/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "express": "^4.16.4",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.2",
+    "ws": "^6.2.1"
+  },
+  "deprecated": false,
+  "description": "Hubitat HubConnect plugin for HomeBridge",
+  "engines": {
+    "homebridge": ">=0.3.1",
+    "node": ">=0.12.0"
+  },
+  "homepage": "https://github.com/danTapps/homebridge-hubitat-hubconnect#readme",
+  "keywords": [
+    "homebridge-plugin",
+    "hubitat",
+    "homekit",
+    "homebridge",
+    "hubconnect"
+  ],
+  "license": "ISC",
+  "name": "homebridge-hubitat-hubconnect",
+  "preferGlobal": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danTapps/homebridge-hubitat-hubconnect.git"
+  },
+  "version": "0.0.1"
+}
