@@ -62,7 +62,7 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;hubconnect_key&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;THIS-SHOULD-BE-YOUR-CONNECTION-KEY&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2"></span>
-   <span style="color: #f8f8f2">}<br>}</span>
+   <span style="color: #f8f8f2">}</span>
 </pre></div>
 
 
