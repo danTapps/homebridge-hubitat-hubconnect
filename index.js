@@ -83,7 +83,7 @@ HE_ST_Platform.prototype = {
                         var accessory;
                         if (that.deviceLookup[device.deviceid]) {
                             accessory = that.deviceLookup[device.deviceid];
-                            accessory.loadData(device);
+                            //accessory.loadData(device);
                         }
                         else {
                             accessory = new HE_ST_Accessory(that, group.deviceclass, device);
@@ -123,12 +123,12 @@ HE_ST_Platform.prototype = {
                     mode.label = 'Mode - ' + mode.name;
                     mode.attr = [];
                     mode.attr.push ({name: "switch", value: mode.active === true ? "on": "off", unit: ""});
+                    var accessory;
                     if (that.deviceLookup[mode.deviceid]) {
                         accessory = that.deviceLookup[mode.deviceid];
                         //accessory.loadData(device);
                     }
                     else {
-                        accessory = new HE_ST_Accessory(that, 'mode', mode);
                         if (accessory !== undefined) {
                             if (accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
                                 if (that.firstpoll) {
@@ -279,7 +279,7 @@ HE_ST_Platform.prototype = {
         // that.log("Processing Update");
         // that.log(attributeSet);
         if (!(that.attributeLookup[attributeSet.attribute] && that.attributeLookup[attributeSet.attribute][attributeSet.device])) {
-            that.log('not found');
+            that.log('Attribute not found for device: ' + util.inspect(attributeSet, false, null, true));
             return;
         }
         var myUsage = that.attributeLookup[attributeSet.attribute][attributeSet.device];
@@ -314,17 +314,17 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
 
     // Let's create the regular HTTP request and response
     app.get('/', function(req, res) {
-        console.log('Get index');
+        myHe_st_api.log('Get index');
     });
 
     app.post('/devices/save', function(req, res) {
         let message = req.body.message;
-        console.log('Save Devices POST message: ', util.inspect(req.body, false, null, true));
+        //myHe_st_api.log.log('Save Devices POST message: ', util.inspect(req.body, false, null, true));
         return res.json({status: "complete"});
     });
 
     app.get('/system/setCommStatus/:newStatus', function(req,res) {
-        console.log("Setting event communication status from remote hub:" + util.inspect(req.params, false, null, true));
+        myHe_st_api.log("Setting event communication status from remote hub:" + util.inspect(req.params, false, null, true));
         return res.json({status: "success", switch: req.params.newStatus == "false" ? "on" : "off"});
     });
 
@@ -365,11 +365,11 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
         return res.json({status: "success"});
     });
     app.get('*', function(req, res) {
-        console.log('Unkown GET request: ' + req.path);
+        myHe_st_api.log('Unkown GET request: ' + req.path);
     });
 
     app.post('*', function(req, res) {
-        console.log('Unkown POST request: ' + req.path);
+        myHe_st_api.log('Unkown POST request: ' + req.path);
     });
     // Create web socket server on top of a regular http server
     let wss = new WSServer({
@@ -378,30 +378,30 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
 
     server.on('request', app);
     wss.on('connection', function connection(ws) {
-      //console.log('new websocket connection' + ws);
+      //myHe_st_api.log('new websocket connection' + ws);
       var index = clients.push(ws) - 1;
       ws.on('close', function (ws) {
             clients.splice(index, 1);
       });
       ws.on('message', function incoming(message) {
-        console.log(`received: ${message}`);
+        myHe_st_api.log(`received: ${message}`);
     //    ws.send(JSON.stringify({    }));
       });
     });
 
     server.listen(myHe_st_api.local_port || 20009, function() {
-        console.log('homebridge-hubitat-hubconnect server listening on ' || myHe_st_api.local_port);
+        myHe_st_api.log('homebridge-hubitat-hubconnect server listening on ' || myHe_st_api.local_port);
     });
 
     myHe_st_api.api.connect("http://" + myHe_st_api.local_ip + ":" + myHe_st_api.local_port + "/",
                             "local", "1234567890", "Homebridge " + myHe_st_api.config['name'], function (data) {
-        console.log('connect resp: ' + data);
+        myHe_st_api.log('connect resp: ' + data);
     });
 
     myHe_st_api.api.ping();
     
     setInterval(function() {
-      // console.log("send ping");
+       myHe_st_api.log("send ping");
         myHe_st_api.api.ping();
     }, 60000);
     return 'good';
