@@ -37,32 +37,15 @@ module.exports = function(homebridge) {
 function HE_ST_Platform(log, config) {
     this.temperature_unit = 'F';
 
-    this.app_url = config['app_url'];
-    this.app_id = config['app_id'];
-    this.access_token = config['access_token'];
-    this.hubconnect_string = config['hubconnect_string'];
+    this.hubconnect_key = config['hubconnect_key'];
 
-    this.excludedCapabilities = config["excluded_capabilities"] || [];
+    this.local_hub_ip = undefined;
 
     // This is how often it does a full refresh
     this.polling_seconds = config['polling_seconds'];
     // Get a full refresh every hour.
     if (!this.polling_seconds) {
         this.polling_seconds = 3600;
-    }
-
-    // This is how often it polls for subscription data.
-
-    this.local_commands = false;
-    this.local_hub_ip = undefined;
-
-    this.update_seconds = config['update_seconds'];
-    // 30 seconds is the new default
-    if (!this.update_seconds) {
-        this.update_seconds = 30;
-    }
-    if (this.update_method === 'api' && this.update_seconds < 30) {
-        this.log('The setting for update_seconds is lower than the ' + platformName + ' recommended value. Please switch to direct or PubNub using a free subscription for real-time updates.');
     }
     this.local_port = config['local_port'];
     if (this.local_port === undefined || this.local_port === '') {
@@ -73,6 +56,8 @@ function HE_ST_Platform(log, config) {
     if (this.local_ip === undefined || this.local_ip === '') {
         this.local_ip = getIPAddress();
     }
+    this.enable_modes = config['mode_switches'] || false;
+
     this.config = config;
     this.api = he_st_api;
     this.log = log;
@@ -127,13 +112,55 @@ HE_ST_Platform.prototype = {
         if (callback) callback(foundAccessories);
         that.firstpoll = false;
     },
+    loadModes: function(accessories, callback) {
+        var that = this;
+        he_st_api.getModes(function(modes) {
+            if ((modes) && that.enable_modes)
+            {
+                modes.forEach(function(mode) {
+                    that.log('mode: ' + mode.name);
+                    mode.deviceid = 1000 + mode.id;
+                    mode.label = 'Mode - ' + mode.name;
+                    mode.attr = [];
+                    mode.attr.push ({name: "switch", value: mode.active === true ? "on": "off", unit: ""});
+                    if (that.deviceLookup[mode.deviceid]) {
+                        accessory = that.deviceLookup[mode.deviceid];
+                        //accessory.loadData(device);
+                    }
+                    else {
+                        accessory = new HE_ST_Accessory(that, 'mode', mode);
+                        if (accessory !== undefined) {
+                            if (accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
+                                if (that.firstpoll) {
+                                    that.log('Device Skipped - Group ' + accessory.deviceGroup + ', Name ' + accessory.name + ', ID ' + accessory.deviceid + ', JSON: ' + JSON.stringify(device));
+                                }
+                            } else {
+                                // that.log("Device Added - Group " + accessory.deviceGroup + ", Name " + accessory.name + ", ID " + accessory.deviceid); //+", JSON: "+ JSON.stringify(device));
+                                that.deviceLookup[accessory.deviceid] = accessory;
+                                accessories.push(accessory);
+                            }
+                        }
+                    } 
+                }); 
+            }
+            if (callback)
+                callback(accessories); 
+        });
+    },
     reloadData: function(callback) {
         var that = this;
         // that.log('config: ', JSON.stringify(this.config));
         that.log.debug('Refreshing All Device Data');
         he_st_api.getDevices(function(myList) {
             that.processDevices(myList, function(data) {
-                if (callback)
+                if (that.enable_modes)
+                {
+                    that.loadModes(data, function(data) {
+                        if (callback)
+                            callback(data);
+                    });
+                }
+                else if (callback)
                     callback(data);
             });
         });
@@ -207,7 +234,7 @@ HE_ST_Platform.prototype = {
             this.knownCapabilities = newList;
         }
 
-        he_st_api.init(this.hubconnect_string);
+        he_st_api.init(this.hubconnect_key);
         this.reloadData(function(foundAccessories) {
             that.log('Unknown Capabilities: ' + JSON.stringify(that.unknownCapabilities));
             callback(foundAccessories);
@@ -252,6 +279,7 @@ HE_ST_Platform.prototype = {
         // that.log("Processing Update");
         // that.log(attributeSet);
         if (!(that.attributeLookup[attributeSet.attribute] && that.attributeLookup[attributeSet.attribute][attributeSet.device])) {
+            that.log('not found');
             return;
         }
         var myUsage = that.attributeLookup[attributeSet.attribute][attributeSet.device];
@@ -301,6 +329,22 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     });
 
     app.get('/modes/:mode', function(req, res) {
+        myHe_st_api.deviceLookup.forEach(function (accessory)
+        {
+            var newChange = [];
+            if (accessory.deviceGroup === "mode")
+            {
+                if (accessory.name === "Mode - " + req.params.mode)
+                    newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'on', date: new Date(), displayName: accessory.name });
+                else
+                    newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'off', date: new Date(), displayName: accessory.name });
+            }
+            newChange.forEach(function(element)
+            {
+                myHe_st_api.log('Change Event (Socket):', '(' + element['displayName'] + ':' + element['device'] + ') [' + (element['attribute'] ? element['attribute'].toUpperCase() : 'unknown') + '] is ' + element['value']);
+                myHe_st_api.processFieldUpdate(element, myHe_st_api);
+            });
+        });
         return res.json({status: "success"});
     });
 
@@ -334,7 +378,7 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
 
     server.on('request', app);
     wss.on('connection', function connection(ws) {
-      console.log('new websocket connection' + ws);
+      //console.log('new websocket connection' + ws);
       var index = clients.push(ws) - 1;
       ws.on('close', function (ws) {
             clients.splice(index, 1);
@@ -346,7 +390,7 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     });
 
     server.listen(myHe_st_api.local_port || 20009, function() {
-        console.log('http/ws server listening on 20009');
+        console.log('homebridge-hubitat-hubconnect server listening on ' || myHe_st_api.local_port);
     });
 
     myHe_st_api.api.connect("http://" + myHe_st_api.local_ip + ":" + myHe_st_api.local_port + "/",
@@ -357,12 +401,12 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     myHe_st_api.api.ping();
     
     setInterval(function() {
-      console.log("send ping");
+      // console.log("send ping");
         myHe_st_api.api.ping();
     }, 60000);
     return 'good';
 }
-
+/*
 function he_eventsocket_SetupWebSocket(myHe_st_api) {
     const WebSocket = require('ws');
     var that = this;
@@ -493,4 +537,4 @@ function he_st_api_HandleHTTPResponse(request, response, myHe_st_api) {
         });
     }
     response.end('OK');
-}
+}*/

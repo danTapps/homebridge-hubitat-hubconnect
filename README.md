@@ -60,6 +60,7 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;platform&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;Hubitat-HubConnect&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;name&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;Hubitat&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;hubconnect_key&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;THIS-SHOULD-BE-YOUR-CONNECTION-KEY&quot;</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;enable_modes&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2"></span>
    <span style="color: #f8f8f2">}</span>
@@ -71,6 +72,9 @@ Installation comes in two parts:
 
  * <p><u>app_url</u> & <u>hubconnect_key</u>  <small style="color: orange; font-weight: 600;"><i>Required</i></small><br>
     This is the HubConnect Connection Key to allow to retrieve the connection paramters to the HubConnect App.</small></p>
+
+ * <p><u>enable_modes</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
+    Creates virtual switches to contol Hubitat Modes. Possible values true|false. Default is false</small></p>
 
  * <p><u>local_ip</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
     Defaults to first available IP on your computer<br><small style="color: gray;">Most installations won't need this, but if for any reason it can't identify your ip address correctly, use this setting to force the IP presented to Hubitat for the hub to send to.</small></p>
