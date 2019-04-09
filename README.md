@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.0.3```**
+**```Current App version: 0.0.4```**
 
 <br>
 
@@ -28,9 +28,7 @@ The program will attempt to determine your IP address automatically, but that ca
 When properly setup, you should see something like this in your Homebridge startup immediately after the PIN:
 CHECK
 ```
-[1/29/2017, 8:28:45 AM] Homebridge is running on port 51826.
-[1/29/2017, 8:28:45 AM] [Hubitat] Direct Connect Is Listening On 10.0.0.70:8005
-[1/29/2017, 8:28:45 AM] [Hubitat] Hubitat Hub Communication Established
+TBD
 ```
 
 <br>
@@ -63,7 +61,7 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;enable_modes&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2"></span>
-   <span style="color: #f8f8f2">}</span>
+<span style="color: #f8f8f2">}</span>
 </pre></div>
 
 
