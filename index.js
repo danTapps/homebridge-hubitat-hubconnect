@@ -49,7 +49,7 @@ function HE_ST_Platform(log, config) {
     }
     this.local_port = config['local_port'];
     if (this.local_port === undefined || this.local_port === '') {
-        this.local_port = (platformName === 'SmartThings' ? 8000 : 8005);
+        this.local_port = 20009;
     }
 
     this.local_ip = config['local_ip'];
@@ -390,7 +390,7 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     });
 
     server.listen(myHe_st_api.local_port || 20009, function() {
-        myHe_st_api.log('homebridge-hubitat-hubconnect server listening on ' || myHe_st_api.local_port);
+        myHe_st_api.log('homebridge-hubitat-hubconnect server listening on ' + myHe_st_api.local_port);
     });
 
     myHe_st_api.api.connect("http://" + myHe_st_api.local_ip + ":" + myHe_st_api.local_port + "/",
