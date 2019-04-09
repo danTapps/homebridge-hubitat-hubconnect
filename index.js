@@ -119,7 +119,7 @@ HE_ST_Platform.prototype = {
             {
                 modes.forEach(function(mode) {
                     that.log('mode: ' + mode.name);
-                    mode.deviceid = 1000 + mode.id;
+                    mode.deviceid = 10000 + mode.id;
                     mode.label = 'Mode - ' + mode.name;
                     mode.attr = [];
                     mode.attr.push ({name: "switch", value: mode.active === true ? "on": "off", unit: ""});
@@ -312,6 +312,15 @@ function getIPAddress() {
 function he_st_api_SetupHTTPServer(myHe_st_api) {
 
 
+    app.post('/hub/reboot', function(req, res))
+    {
+        let delay = (10 * 1000);
+        myHe_st_api.log('Received request to restart homebridge service in (' + (delay / 1000)
+ + ' seconds) | NOTICE: If you using PM2 or Systemd the Homebridge Service should start back up automatically');
+        setTimeout(function() {
+            process.exit(1);
+        }, parseInt(delay));        
+    });
     // Let's create the regular HTTP request and response
     app.get('/', function(req, res) {
         myHe_st_api.log('Get index');
@@ -328,7 +337,7 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
         return res.json({status: "success", switch: req.params.newStatus == "false" ? "on" : "off"});
     });
 
-    app.get('/modes/:mode', function(req, res) {
+    app.get('/modes/set/:mode', function(req, res) {
         myHe_st_api.deviceLookup.forEach(function (accessory)
         {
             var newChange = [];
