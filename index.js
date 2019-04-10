@@ -312,8 +312,7 @@ function getIPAddress() {
 function he_st_api_SetupHTTPServer(myHe_st_api) {
 
 
-    app.post('/hub/reboot', function(req, res))
-    {
+    app.post('/hub/reboot', function(req, res){
         let delay = (10 * 1000);
         myHe_st_api.log('Received request to restart homebridge service in (' + (delay / 1000)
  + ' seconds) | NOTICE: If you using PM2 or Systemd the Homebridge Service should start back up automatically');

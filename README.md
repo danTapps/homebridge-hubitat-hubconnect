@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.0.4```**
+**```Current App version: 0.0.9```**
 
 <br>
 
@@ -12,7 +12,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 #### Homebridge Plugin:
 
-***v0.0.3*** - Reworked alot of the code to allow for communication with Hubitat HubConnect
+***v0.0.9*** - Reworked alot of the code to allow for communication with Hubitat HubConnect
 
 <br>
 
