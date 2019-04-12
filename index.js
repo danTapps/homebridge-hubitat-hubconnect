@@ -4,7 +4,7 @@ var he_st_api = require('./lib/he_hubconnect_api');
 //var he_st_api = require('./lib/he_maker_api');
 var http = require('http');
 var os = require('os');
-
+var version = require('./package.json').version;
 var util_http = require ('./lib/util_http.js');
 var url = require('url');
 const util = require('util')
@@ -249,7 +249,12 @@ function getIPAddress() {
 
 function he_st_api_SetupHTTPServer(myHe_st_api) {
 
-
+    app.get('/system/versions/get', function(req, res){
+        return res.json({apps: {appName: platformName, appVersion: version}, drivers: {}})
+    });
+    app.post('/system/drivers/save', function(req, res){
+        return res.json({status: "success"});
+    });
     app.post('/hub/reboot', function(req, res){
         let delay = (10 * 1000);
         myHe_st_api.log('Received request to restart homebridge service in (' + (delay / 1000)
