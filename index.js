@@ -117,12 +117,12 @@ HE_ST_Platform.prototype = {
         he_st_api.getModes(function(modes) {
             if ((modes) && that.enable_modes)
             {
-                modes.forEach(function(mode) {
+                modes.modes.forEach(function(mode) {
                     that.log('mode: ' + mode.name);
                     mode.deviceid = 10000 + mode.id;
                     mode.label = 'Mode - ' + mode.name;
                     mode.attr = [];
-                    mode.attr.push ({name: "switch", value: mode.active === true ? "on": "off", unit: ""});
+                    mode.attr.push ({name: "switch", value: modes.active === mode.name ? "on": "off", unit: ""});
                     var accessory;
                     if (that.deviceLookup[mode.deviceid]) {
                         accessory = that.deviceLookup[mode.deviceid];
@@ -291,21 +291,27 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     });
 
     app.get('/modes/set/:mode', function(req, res) {
+        myHe_st_api.log('Received Set Mode request for mode: ' + req.params.mode);
+        var newChange = [];
+        var foundMode = false;
+
         myHe_st_api.deviceLookup.forEach(function (accessory)
         {
-            var newChange = [];
             if (accessory.deviceGroup === "mode")
             {
+                foundMode = true;
                 if (accessory.name === "Mode - " + req.params.mode)
                     newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'on', date: new Date(), displayName: accessory.name });
                 else
                     newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'off', date: new Date(), displayName: accessory.name });
             }
-            newChange.forEach(function(element)
-            {
-                myHe_st_api.log('Change Event (Socket):', '(' + element['displayName'] + ':' + element['device'] + ') [' + (element['attribute'] ? element['attribute'].toUpperCase() : 'unknown') + '] is ' + element['value']);
-                myHe_st_api.processFieldUpdate(element, myHe_st_api);
-            });
+        });
+        myHe_st_api.log('Found mode accessories: ' + foundMode);
+        myHe_st_api.log('Here are the commands to set internally: ' + util.inspect(newChange, false, null, true));
+        newChange.forEach(function(element)
+        {
+            myHe_st_api.log('Change Event (Mode):', '(' + element['displayName'] + ':' + element['device'] + ') [' + (element['attribute'] ? element['attribute'].toUpperCase() : 'unknown') + '] is ' + element['value']);
+            myHe_st_api.processFieldUpdate(element, myHe_st_api);
         });
         return res.json({status: "success"});
     });

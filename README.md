@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.0.11```**
+**```Current App version: 0.0.12```**
 
 <br>
 
@@ -12,7 +12,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 #### Homebridge Plugin:
 
-***v0.0.11*** - Reworked alot of the code to allow for communication with Hubitat HubConnect
+***v0.0.12*** - Reworked alot of the code to allow for communication with Hubitat HubConnect
 
 <br>
 
@@ -58,7 +58,7 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;platform&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;Hubitat-HubConnect&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;name&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;Hubitat&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;hubconnect_key&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;THIS-SHOULD-BE-YOUR-CONNECTION-KEY&quot;</span><span style="color: #f8f8f2">,</span>
-   <span style="color: #f92672">&quot;enable_modes&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;mode_switches&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2"></span>
 <span style="color: #f8f8f2">}</span>
@@ -71,7 +71,7 @@ Installation comes in two parts:
  * <p><u>app_url</u> & <u>hubconnect_key</u>  <small style="color: orange; font-weight: 600;"><i>Required</i></small><br>
     This is the HubConnect Connection Key to allow to retrieve the connection paramters to the HubConnect App.</small></p>
 
- * <p><u>enable_modes</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
+ * <p><u>mode_switches</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
     Creates virtual switches to contol Hubitat Modes. Possible values true|false. Default is false</small></p>
 
  * <p><u>local_ip</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
