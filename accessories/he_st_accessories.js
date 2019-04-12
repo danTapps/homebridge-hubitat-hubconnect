@@ -26,7 +26,6 @@ function toTitleCase(str) {
 }
 
 function HE_ST_Accessory(platform, group, device) {
-    // console.log("HE_ST_Accessory: ", platform, device);
     this.deviceid = device.deviceid;
     this.name = device.label;
     this.platform = platform;
@@ -39,7 +38,6 @@ function HE_ST_Accessory(platform, group, device) {
         this.device.attributes = {};
     if (!this.device.commands)
         this.device.commands = {};
-    //platform.log('device:'+device);
     var idKey = 'hbdev:' + platformName.toLowerCase() + ':' + this.deviceid;
     var id = uuid.generate(idKey);
     Accessory.call(this, this.name, id);
@@ -73,9 +71,7 @@ function HE_ST_Accessory(platform, group, device) {
             })
             .on('set', function(value, callback) {
                 if (value && that.device.attributes.switch === 'off') {
-                    platform.api.runCommand(callback, device.deviceid, 'mode', {
-                        value1: that.name.toString()
-                    });
+                    platform.api.setMode(callback, device.deviceid, that.name.toString().replace('Mode - ', ''));
                 }
             });
         platform.addAttributeUsage('switch', device.deviceid, thisCharacteristic);

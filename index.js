@@ -171,72 +171,9 @@ HE_ST_Platform.prototype = {
         var that = this;
         // var foundAccessories = [];
         this.deviceLookup = [];
-        this.unknownCapabilities = [];
-        this.knownCapabilities = [
-            'Switch',
-            'Light',
-            'LightBulb',
-            'Bulb',
-            'Color Control',
-            'Door',
-            'Window',
-            'Battery',
-            'Polling',
-            'Lock',
-            'Refresh',
-            'Lock Codes',
-            'Sensor',
-            'Actuator',
-            'Configuration',
-            'Switch Level',
-            'Temperature Measurement',
-            'Motion Sensor',
-            'Color Temperature',
-            'Illuminance Measurement',
-            'Contact Sensor',
-            'Acceleration Sensor',
-            'Door Control',
-            'Garage Door Control',
-            'Relative Humidity Measurement',
-            'Presence Sensor',
-            'Carbon Dioxide Measurement',
-            'Carbon Monoxide Detector',
-            'Water Sensor',
-            'Window Shade',
-            'Valve',
-            'Energy Meter',
-            'Power Meter',
-            'Thermostat',
-            'Thermostat Cooling Setpoint',
-            'Thermostat Mode',
-            'Thermostat Fan Mode',
-            'Thermostat Operating State',
-            'Thermostat Heating Setpoint',
-            'Thermostat Setpoint',
-            'Fan Speed',
-            'Fan Control',
-            'Fan Light',
-            'Fan',
-            'Speaker',
-            'Tamper Alert',
-            'Alarm',
-            'Alarm System Status',
-            'AlarmSystemStatus',
-            'Mode',
-            'Routine',
-            'Button'
-        ];
-        if (platformName === 'Hubitat' || platformName === 'hubitat') {
-            let newList = [];
-            for (const item in this.knownCapabilities) {
-                newList.push(this.knownCapabilities[item].replace(/ /g, ''));
-            }
-            this.knownCapabilities = newList;
-        }
 
         he_st_api.init(this.hubconnect_key);
         this.reloadData(function(foundAccessories) {
-            that.log('Unknown Capabilities: ' + JSON.stringify(that.unknownCapabilities));
             callback(foundAccessories);
             setInterval(that.reloadData.bind(that), that.polling_seconds * 1000);
             he_st_api_SetupHTTPServer(that);
