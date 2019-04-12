@@ -301,6 +301,13 @@ function HE_ST_Accessory(platform, group, device) {
                 }
             });
         platform.addAttributeUsage('switch', device.deviceid, thisCharacteristic);
+        if (device.attributes.hasOwnProperty('power')) {
+            thisCharacteristic = that.getaddService(serviceType).addCharacteristic(CommunityTypes.CurrentConsumption1)
+                .on('get', function(callback) {
+                callback(null, Math.round(device.attributes.power));
+            });
+            platform.addAttributeUsage('power', device.deviceid, thisCharacteristic);
+        }
     }
     if (device.commands.hasOwnProperty('setLevel'))
     {

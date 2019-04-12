@@ -30,5 +30,5 @@
     "type": "git",
     "url": "git+https://github.com/danTapps/homebridge-hubitat-hubconnect.git"
   },
-  "version": "0.0.13"
+  "version": "0.0.14"
 }

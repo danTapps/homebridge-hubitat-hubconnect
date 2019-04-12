@@ -1,6 +1,7 @@
 const pluginName = 'homebridge-hubitat-hubconnect';
 const platformName = 'Hubitat-HubConnect';
-var he_st_api = require('./lib/he_hubconnect_api');
+var he_st_api = require('./lib/he_hubconnect_api').api;
+var ignoreTheseAttributes = require('./lib/he_hubconnect_api').ignoreTheseAttributes;
 //var he_st_api = require('./lib/he_maker_api');
 var http = require('http');
 var os = require('os');
@@ -250,7 +251,8 @@ function getIPAddress() {
 function he_st_api_SetupHTTPServer(myHe_st_api) {
 
     app.get('/system/versions/get', function(req, res){
-        return res.json({apps: {appName: platformName, appVersion: version}, drivers: {}})
+        var versionSplit = version.split('.');
+        return res.json({apps: [{appName: platformName, appVersion: {major: parseInt(versionSplit[0]), minor: parseInt(versionSplit[1]), build: parseInt(versionSplit[2])}}], drivers: {}})
     });
     app.post('/system/drivers/save', function(req, res){
         return res.json({status: "success"});
@@ -262,6 +264,7 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
         setTimeout(function() {
             process.exit(1);
         }, parseInt(delay));        
+        return res.json({status: "success"});
     });
     // Let's create the regular HTTP request and response
     app.get('/', function(req, res) {
@@ -293,21 +296,16 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     app.get('/modes/set/:mode', function(req, res) {
         myHe_st_api.log('Received Set Mode request for mode: ' + req.params.mode);
         var newChange = [];
-        var foundMode = false;
-
         myHe_st_api.deviceLookup.forEach(function (accessory)
         {
             if (accessory.deviceGroup === "mode")
             {
-                foundMode = true;
                 if (accessory.name === "Mode - " + req.params.mode)
                     newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'on', date: new Date(), displayName: accessory.name });
                 else
                     newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'off', date: new Date(), displayName: accessory.name });
             }
         });
-        myHe_st_api.log('Found mode accessories: ' + foundMode);
-        myHe_st_api.log('Here are the commands to set internally: ' + util.inspect(newChange, false, null, true));
         newChange.forEach(function(element)
         {
             myHe_st_api.log('Change Event (Mode):', '(' + element['displayName'] + ':' + element['device'] + ') [' + (element['attribute'] ? element['attribute'].toUpperCase() : 'unknown') + '] is ' + element['value']);
@@ -319,6 +317,11 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     app.get('/device/:deviceid/event/:data', function(req, res) {
 
             var data = JSON.parse(req.params.data);
+            if (ignoreTheseAttributes().indexOf(data.name) > -1)
+            {
+                //myHe_st_api.log('Ignore Attribute ' + data.name + ' for device ' + req.params.deviceid);
+                return res.json({status: "success"});
+            }
             if (Object.keys(data).length > 2) {
                 var newChange = {
                     device: req.params.deviceid,
