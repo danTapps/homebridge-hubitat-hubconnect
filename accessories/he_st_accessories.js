@@ -295,9 +295,9 @@ function HE_ST_Accessory(platform, group, device) {
             })
             .on('set', function(value, callback) {
                 if (value) {
-                    platform.api.runCommand(callback, device.id, 'on');
+                    platform.api.runCommand(callback, device.deviceid, 'on');
                 } else {
-                    platform.api.runCommand(callback, device.id, 'off');
+                    platform.api.runCommand(callback, device.deviceid, 'off');
                 }
             });
         platform.addAttributeUsage('switch', device.deviceid, thisCharacteristic);
@@ -338,12 +338,12 @@ function HE_ST_Accessory(platform, group, device) {
                     callback(null, parseInt(device.attributes.level));
                 })
                 .on('set', function(value, callback) {
-                    platform.api.runCommand(callback, device.id, 'setLevel', {
+                    platform.api.runCommand(callback, device.deviceid, 'setLevel', {
                         value1: value//,
                         //value2: 1
                     });
                 });
-            platform.addAttributeUsage('level', device.id, thisCharacteristic);
+            platform.addAttributeUsage('level', device.deviceid, thisCharacteristic);
         }
     }
     if (device.commands.hasOwnProperty('setHue'))
