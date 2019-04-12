@@ -129,6 +129,7 @@ HE_ST_Platform.prototype = {
                         //accessory.loadData(device);
                     }
                     else {
+                        accessory = new HE_ST_Accessory(that, 'mode', mode);
                         if (accessory !== undefined) {
                             if (accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
                                 if (that.firstpoll) {
@@ -272,6 +273,17 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
         myHe_st_api.log("Setting event communication status from remote hub:" + util.inspect(req.params, false, null, true));
         return res.json({status: "success", switch: req.params.newStatus == "false" ? "on" : "off"});
     });
+    app.get('/modes/get', function(req, res) {
+        var knownModes = [] 
+        myHe_st_api.deviceLookup.forEach(function (accessory)
+        {
+            if (accessory.deviceGroup === "mode")
+            {
+                knownModes.push({id: accessory.deviceid - 10000, name: accessory.name.toString().replace('Mode - ', ''), active: accessory.device.attributes.switch === 'on'});
+            }
+        });
+        return res.json(knownModes);
+    });
 
     app.get('/modes/set/:mode', function(req, res) {
         myHe_st_api.deviceLookup.forEach(function (accessory)
@@ -310,11 +322,11 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
         return res.json({status: "success"});
     });
     app.get('*', function(req, res) {
-        myHe_st_api.log('Unkown GET request: ' + req.path);
+        myHe_st_api.log('Unknown GET request: ' + req.path);
     });
 
     app.post('*', function(req, res) {
-        myHe_st_api.log('Unkown POST request: ' + req.path);
+        myHe_st_api.log('Unknown POST request: ' + req.path);
     });
     // Create web socket server on top of a regular http server
     let wss = new WSServer({
