@@ -330,7 +330,8 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
                     unit: data.unit,
                     date: new Date()
                 };
-                myHe_st_api.log('Change Event:', '(' + req.params.deviceid + ') [' + (data.name ? data.name.toUpperCase() : 'unknown') + '] is ' + data.value);
+                var logName = myHe_st_api.deviceLookup[req.params.deviceid] ? myHe_st_api.deviceLookup[req.params.deviceid].name + ':' + req.params.deviceid : req.params.deviceid ;
+                myHe_st_api.log('Change Event:', '(' + logName + ') [' + (data.name ? data.name.toUpperCase() : 'unknown') + '] is ' + data.value);
                 myHe_st_api.processFieldUpdate(newChange, myHe_st_api);
             }
         return res.json({status: "success"});

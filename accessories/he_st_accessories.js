@@ -339,8 +339,8 @@ function HE_ST_Accessory(platform, group, device) {
                 })
                 .on('set', function(value, callback) {
                     platform.api.runCommand(callback, device.id, 'setLevel', {
-                        value1: value,
-                        value2: 1
+                        value1: value//,
+                        //value2: 1
                     });
                 });
             platform.addAttributeUsage('level', device.id, thisCharacteristic);
@@ -693,6 +693,26 @@ function HE_ST_Accessory(platform, group, device) {
             });
         platform.addAttributeUsage('position', device.deviceid, thisCharacteristic);
         thisCharacteristic = that.getaddService(Service.WindowCovering).setCharacteristic(Characteristic.PositionState, Characteristic.PositionState.STOPPED);
+    }
+    if (device.attributes.hasOwnProperty('speed') && device.commands.hasOwnProperty('setSpeed'))
+    {
+        let fanLvl = fanSpeedConversion(that.device.attributes.speed, false);
+        platform.log("Fan with (" + that.device.attributes.speed + ' value: ' + fanLvl);
+        thisCharacteristic = that.getaddService(Service.Fanv2).getCharacteristic(Characteristic.RotationSpeed)
+            .on('get', function(callback) {
+                callback(null, fanLvl);
+            })
+            .on('set', function(value, callback) {
+            if (value > 0) {
+                let cmdStr = 'setSpeed';
+                let cmdVal = fanSpeedConversion(value, false);
+                platform.log("Fan Command (Str: " + cmdStr + ') | value: (' + cmdVal + ')');
+                platform.api.runCommand(callback, device.deviceid, cmdStr, {
+                    value1: cmdVal
+                });
+            }
+        });
+        platform.addAttributeUsage('speed', device.deviceid, thisCharacteristic);
     }
 /*
     if (device && device.capabilities) {

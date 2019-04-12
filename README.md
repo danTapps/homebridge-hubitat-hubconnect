@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.0.13```**
+**```Current App version: 0.1.0```**
 
 <br>
 
@@ -12,7 +12,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 #### Homebridge Plugin:
 
-***v0.0.13*** - Reworked alot of the code to allow for communication with Hubitat HubConnect
+***v0.1.0*** - Reworked alot of the code to allow for communication with Hubitat HubConnect
 
 <br>
 
@@ -26,9 +26,9 @@ The port used for this can be configured by the "local_port" setting and default
 The program will attempt to determine your IP address automatically, but that can be overridden by "local_ip" which is useful if you have multiple addresses.
 
 When properly setup, you should see something like this in your Homebridge startup immediately after the PIN:
-CHECK
 ```
-TBD
+[2019-4-12 12:46:45] Homebridge is running on port 51826.
+[2019-4-12 12:46:45] [Hubitat Dev] homebridge-hubitat-hubconnect server listening on 20009
 ```
 
 <br>
