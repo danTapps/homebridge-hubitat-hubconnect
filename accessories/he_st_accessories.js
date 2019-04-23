@@ -119,20 +119,24 @@ function HE_ST_Accessory(platform, group, device) {
                 .on('set', function(value, callback) {
                     switch (value) {
                         case Characteristic.TargetHeatingCoolingState.COOL:
-                            platform.api.runCommand(callback, device.deviceid, 'cool');
+                            platform.api.runCommand(device.deviceid, 'cool').catch(function(resp) { });
                             that.device.attributes.thermostatMode = 'cool';
+                            callback();
                             break;
                         case Characteristic.TargetHeatingCoolingState.HEAT:
-                            platform.api.runCommand(callback, device.deviceid, 'heat');
+                            platform.api.runCommand(device.deviceid, 'heat').catch(function(resp) { });
                             that.device.attributes.thermostatMode = 'heat';
+                            callback();
                             break;
                         case Characteristic.TargetHeatingCoolingState.AUTO:
-                            platform.api.runCommand(callback, device.deviceid, 'auto');
+                            platform.api.runCommand(device.deviceid, 'auto').catch(function(resp) { });
                             that.device.attributes.thermostatMode = 'auto';
+                            callback();
                             break;
                         case Characteristic.TargetHeatingCoolingState.OFF:
-                            platform.api.runCommand(callback, device.deviceid, 'off');
+                            platform.api.runCommand(device.deviceid, 'off').catch(function(resp) { });
                             that.device.attributes.thermostatMode = 'off';
+                            callback();
                             break;
                     }
                 });

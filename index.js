@@ -14,6 +14,7 @@ let server = require('http').createServer();
 let express = require('express');
 let app = express();
 let bodyParser = require('body-parser');
+var Logger = require('./lib/Logger.js').Logger;
 
 var clients = [];
 
@@ -61,7 +62,7 @@ function HE_ST_Platform(log, config) {
 
     this.config = config;
     this.api = he_st_api;
-    this.log = log;
+    this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + version);
     this.deviceLookup = {};
     this.firstpoll = true;
     this.attributeLookup = {};
@@ -115,7 +116,7 @@ HE_ST_Platform.prototype = {
     },
     loadModes: function(accessories, callback) {
         var that = this;
-        he_st_api.getModes(function(modes) {
+        he_st_api.getModes().then(function(modes) {
             if ((modes) && that.enable_modes)
             {
                 modes.modes.forEach(function(mode) {
@@ -153,7 +154,7 @@ HE_ST_Platform.prototype = {
         var that = this;
         // that.log('config: ', JSON.stringify(this.config));
         that.log.debug('Refreshing All Device Data');
-        he_st_api.getDevices(function(myList) {
+        he_st_api.getDevices().then(function(myList) {
             that.processDevices(myList, function(data) {
                 if (that.enable_modes)
                 {
@@ -280,6 +281,12 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     app.get('/system/setCommStatus/:newStatus', function(req,res) {
         myHe_st_api.log("Setting event communication status from remote hub:" + util.inspect(req.params, false, null, true));
         return res.json({status: "success", switch: req.params.newStatus == "false" ? "on" : "off"});
+    });
+    app.get('/hsm/get', function(req, res) {
+        return res.json({status: "complete"});
+    });
+    app.get('/hsm/set/:hsm', function(req, res) {
+        return res.json({status: "complete"});
     });
     app.get('/modes/get', function(req, res) {
         var knownModes = [] 
