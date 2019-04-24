@@ -8,7 +8,6 @@ var os = require('os');
 var version = require('./package.json').version;
 var util_http = require ('./lib/util_http.js');
 var url = require('url');
-const util = require('util')
 let WSServer = require('ws').Server;
 let server = require('http').createServer();
 let express = require('express');
@@ -23,23 +22,33 @@ var Service,
     Characteristic,
     Accessory,
     uuid,
-    HE_ST_Accessory;
+    HE_ST_Accessory,
+    PlatformAccessory;
+const util = require('util');
+var Logger = require('./lib/Logger.js').Logger;
 
 module.exports = function(homebridge) {
     console.log("Homebridge Version: " + homebridge.version);
+    console.log("Plugin Version: hhh:" + version);
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
     Accessory = homebridge.hap.Accessory;
     uuid = homebridge.hap.uuid;
-    HE_ST_Accessory = require('./accessories/he_st_accessories')(Accessory, Service, Characteristic, uuid, platformName);
+    PlatformAccessory = homebridge.platformAccessory;
+    HE_ST_Accessory = require('./accessories/he_st_accessories')(Accessory, Service, Characteristic, PlatformAccessory, uuid, platformName);
     homebridge.registerPlatform(pluginName, platformName, HE_ST_Platform);
 };
 
-function HE_ST_Platform(log, config) {
+function HE_ST_Platform(log, config, api) {
     this.temperature_unit = 'F';
+    this.temperature_unit = config['temperature_unit'];
+    if (this.temperature_unit === undefined || this.temperature_unit === '' || (this.temperature_unit !== 'F' && this.temperature_unit !== 'C')) {
+        this.local_port = 'F';
+    }
 
     this.hubconnect_key = config['hubconnect_key'];
-
+    this.excludedAttributes = config["excluded_attributes"] || [];
+    this.excludedCapabilities = config["excluded_capabilities"] || [];
     this.local_hub_ip = undefined;
 
     // This is how often it does a full refresh
@@ -61,10 +70,12 @@ function HE_ST_Platform(log, config) {
 
     this.config = config;
     this.api = he_st_api;
-    this.log = log;
+    this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + version);
+
     this.deviceLookup = {};
     this.firstpoll = true;
     this.attributeLookup = {};
+    this.hb_api = api;
 }
 
 HE_ST_Platform.prototype = {
@@ -177,7 +188,7 @@ HE_ST_Platform.prototype = {
         he_st_api.init(this.hubconnect_key);
         this.reloadData(function(foundAccessories) {
             callback(foundAccessories);
-            setInterval(that.reloadData.bind(that), that.polling_seconds * 1000);
+            //setInterval(that.reloadData.bind(that), that.polling_seconds * 1000);
             he_st_api_SetupHTTPServer(that);
         });
     },
@@ -218,7 +229,7 @@ HE_ST_Platform.prototype = {
         // that.log("Processing Update");
         // that.log(attributeSet);
         if (!(that.attributeLookup[attributeSet.attribute] && that.attributeLookup[attributeSet.attribute][attributeSet.device])) {
-            that.log('Attribute not found for device: ' + util.inspect(attributeSet, false, null, true));
+            //that.log('Attribute not found for device: ' + util.inspect(attributeSet, false, null, true));
             return;
         }
         var myUsage = that.attributeLookup[attributeSet.attribute][attributeSet.device];

@@ -61,7 +61,12 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;mode_switches&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2"></span>
-<span style="color: #f8f8f2">}</span>
+   <span style="color: #f92672">&quot;excluded_attributes&quot;</span><span style="color: #f8f8f2">: {</span>
+   <span style="color: lightblue">    &quot;HUBITAT-DEVICE-ID-1&quot;</span><span style="color: #f8f8f2">: [</span>
+   <span style="color: orange">       &quot;power&quot;</span><span style="color: #f8f8f2">,</span>
+   <span style="color: orange">       &quot;humidity&quot;</span>
+   <span style="color: #f8f8f2">    ]</span>
+   <span style="color: #f8f8f2">}<br>}</span>
 </pre></div>
 
 
@@ -79,3 +84,45 @@ Installation comes in two parts:
 
  * <p><u>local_port</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
    Defaults to 20009<br><small style="color: gray;">This is the port that homebridge-hubitat-hubconnect plugin will listen on for traffic from your hub. Make sure your firewall allows incoming traffic on this port from your hub's IP address.</small></p>
+
+ * <p><u>excluded_attributes</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
+   Defaults to None<br>Specify the Hubitat device by ID and the associated attributes you want homebridge-hubitat-makerapi to ignore. This prevents a Hubitat device from creating unwanted or redundant HomeKit accessories</small></p>
+
+## Attribute Filtering
+The **homebridge-hubitat-hubconnect** creates Homekit devices based on the attributes of devices. 
+The following attributes are currently being handled: 
+
+| **Attribute** | **HomeKit Devices** |
+| ------------ | ------------ |
+| thermostatOperatingState | Thermostat |
+| switch and (level or hue or saturation) | Light Bulb |
+| switch | Switch |
+| motion | Motion Sensor |
+| presence | Occupancy Sensor |
+| lock | Lock Mechanism |
+| temperature (and not a thermostat) | Temperature Sensor|
+| contact | Contact Sensor |
+| door | Garage Door Opener |
+| smoke | Smoke Sensor |
+| carbonMonoxide | Carbon Monoxide Sensor |
+| carbonDioxideMeasurement | Carbon Dioxide Sensor |
+| water | Leak Sensor |
+| humidity | Humidity Sensor |
+| illuminance | Light Sensor |
+| battery | Battery Service |
+| position | Window Covering |
+| speed | Fan Controller |
+| valve | Valve |
+
+The **homebridge-hubitat-hubconnect** plugin does not discriminate! The plugin will create multiple devices in Homekit if a device has multiple of these attributes.
+Let's take a window shade as an example. A window shade might have the attributes "switch" and "position" and would create two Homekit devices, one as a switch and one as window covering. 
+This might not be the desired behavior and you might want to only have one Homekit devices that sets the position of the shade. The plugin allows you to filter out the "switch" attribute and won't create a Homekit device for that attribute.
+To do so, you would add the following configuration to your config.json:
+
+<div style=" overflow:auto;width:auto;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><pre style="margin: 0; line-height: 125%"><span style="color: #f8f8f2"></span>
+   <span style="color: #f92672">&quot;excluded_attributes&quot;</span><span style="color: #f8f8f2">: {</span>
+   <span style="color: lightblue">    &quot;HUBITAT-DEVICE-ID&quot;</span><span style="color: #f8f8f2">: [</span>
+   <span style="color: orange">       &quot;switch&quot;</span><span style="color: #f8f8f2"></span>
+   <span style="color: #f8f8f2">    ]</span>
+   <span style="color: #f8f8f2">}</span>
+</pre></div>
