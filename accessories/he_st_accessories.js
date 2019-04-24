@@ -49,8 +49,9 @@ function HE_ST_Accessory(platform, group, device) {
     if (device.firmwareVersion) that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.FirmwareRevision, device.firmwareVersion);
     if (device.manufacturerName) that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Manufacturer, device.manufacturerName);
     if (device.modelName) that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Model, `${toTitleCase(device.modelName)}`);
-    if (device.serialNumber) that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.SerialNumber, device.serialNumber);    
-
+//    if (device.serialNumber) that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.SerialNumber, device.serialNumber);    
+    that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.SerialNumber, (group==='mode'? 'mode':'device')+':'+device.deviceid);
+  
     that.getaddService = function(Service) {
         var myService = that.getService(Service);
         if (!myService) {
@@ -295,9 +296,9 @@ function HE_ST_Accessory(platform, group, device) {
             })
             .on('set', function(value, callback) {
                 if (value) {
-                    platform.api.runCommand(callback, device.deviceid, 'on');
+                    platform.api.runCommand(callback, device.id, 'on');
                 } else {
-                    platform.api.runCommand(callback, device.deviceid, 'off');
+                    platform.api.runCommand(callback, device.id, 'off');
                 }
             });
         platform.addAttributeUsage('switch', device.deviceid, thisCharacteristic);
@@ -338,12 +339,12 @@ function HE_ST_Accessory(platform, group, device) {
                     callback(null, parseInt(device.attributes.level));
                 })
                 .on('set', function(value, callback) {
-                    platform.api.runCommand(callback, device.deviceid, 'setLevel', {
+                    platform.api.runCommand(callback, device.id, 'setLevel', {
                         value1: value//,
                         //value2: 1
                     });
                 });
-            platform.addAttributeUsage('level', device.deviceid, thisCharacteristic);
+            platform.addAttributeUsage('level', device.id, thisCharacteristic);
         }
     }
     if (device.commands.hasOwnProperty('setHue'))

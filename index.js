@@ -283,17 +283,14 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     });
     app.get('/modes/get', function(req, res) {
         var knownModes = [] 
-        var active = "";
         myHe_st_api.deviceLookup.forEach(function (accessory)
         {
             if (accessory.deviceGroup === "mode")
             {
-                if (accessory.device.attributes.switch === 'on')
-                    active = accessory.name.toString().replace('Mode - ', '');
-                knownModes.push({id: accessory.device.deviceid - 10000, name: accessory.name.toString().replace('Mode - ', '')});
+                knownModes.push({id: accessory.deviceid - 10000, name: accessory.name.toString().replace('Mode - ', ''), active: accessory.device.attributes.switch === 'on'});
             }
         });
-        return res.json({modes: knownModes, active: active});
+        return res.json(knownModes);
     });
 
     app.get('/modes/set/:mode', function(req, res) {
