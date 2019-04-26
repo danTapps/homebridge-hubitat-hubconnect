@@ -8,7 +8,6 @@ var os = require('os');
 var version = require('./package.json').version;
 var util_http = require ('./lib/util_http.js');
 var url = require('url');
-const util = require('util')
 let WSServer = require('ws').Server;
 let server = require('http').createServer();
 let express = require('express');
@@ -23,23 +22,38 @@ var Service,
     Characteristic,
     Accessory,
     uuid,
-    HE_ST_Accessory;
+    HE_ST_Accessory,
+    PlatformAccessory;
+const util = require('util');
+var Logger = require('./lib/Logger.js').Logger;
 
 module.exports = function(homebridge) {
     console.log("Homebridge Version: " + homebridge.version);
+    console.log("Plugin Version: hhh:" + version);
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
     Accessory = homebridge.hap.Accessory;
     uuid = homebridge.hap.uuid;
-    HE_ST_Accessory = require('./accessories/he_st_accessories')(Accessory, Service, Characteristic, uuid, platformName);
+    PlatformAccessory = homebridge.platformAccessory;
+    HE_ST_Accessory = require('./accessories/he_st_accessories')(Accessory, Service, Characteristic, PlatformAccessory, uuid, platformName);
     homebridge.registerPlatform(pluginName, platformName, HE_ST_Platform);
 };
 
-function HE_ST_Platform(log, config) {
-    this.temperature_unit = 'F';
+function HE_ST_Platform(log, config, api) {
+    if ((config === null) || (config === undefined))
+    {
+        this.disabled = true;
+        log('Plugin not configured in config.json, disabled plugin');
+        return null;
+    }
+    
 
+    this.temperature_unit = config['temperature_unit'];
+    if (this.temperature_unit === null || this.temperature_unit === undefined || (this.temperature_unit !== 'F' && this.temperature_unit !== 'C'))
+        this.temperature_unit = 'F'; 
     this.hubconnect_key = config['hubconnect_key'];
-
+    this.excludedAttributes = config["excluded_attributes"] || [];
+    this.excludedCapabilities = config["excluded_capabilities"] || [];
     this.local_hub_ip = undefined;
 
     // This is how often it does a full refresh
@@ -58,16 +72,38 @@ function HE_ST_Platform(log, config) {
         this.local_ip = getIPAddress();
     }
     this.enable_modes = config['mode_switches'] || false;
+    this.enable_hsm = config['hsm'] || false;
 
     this.config = config;
     this.api = he_st_api;
-    this.log = log;
+    this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + version);
+
     this.deviceLookup = {};
     this.firstpoll = true;
     this.attributeLookup = {};
+    this.hb_api = api;
+    this.versionCheck = require('./lib/npm_version_check')(pluginName,version,this.log,null);
+    this.doVersionCheck();
 }
 
 HE_ST_Platform.prototype = {
+    doVersionCheck: function (){
+        var that = this;
+        if (that.versionCheck)
+        {
+            that.versionCheck().then(function(resp){
+            /*    if (resp.versionCheckComplete && !resp.versionIsCurrent)
+                {
+                    if (that.version_speak_device != undefined && that.version_speak_device != null)
+                        that.log('send pushover');
+                        that.api.runCommand(that.version_speak_device, 'speak', {
+                                value1: ('a_newer_version_(' + resp.npm_version + ')_of_the_' + pluginName + '_plugin_is_available_on_NPMJS.')
+                            }).then(function(resp) { }).catch(function(err) { });
+                }*/
+            }).catch(function(resp){
+            });
+        }
+    },
     processDevices: function(myList, callback) {
         var that = this;
         var foundAccessories = [];
@@ -81,6 +117,8 @@ HE_ST_Platform.prototype = {
                     group.devices.forEach(function(device) {
                         that.log('device id: ' + device.id);
                         device.deviceid = device.id;
+                        device.excludedAttributes = that.excludedAttributes[device.deviceid] || ["None"];
+                        device.excludedCapabilities = that.excludedCapabilities[device.deviceid] || ["None"];
                         var accessory;
                         if (that.deviceLookup[device.deviceid]) {
                             accessory = that.deviceLookup[device.deviceid];
@@ -124,6 +162,8 @@ HE_ST_Platform.prototype = {
                     mode.label = 'Mode - ' + mode.name;
                     mode.attr = [];
                     mode.attr.push ({name: "switch", value: modes.active === mode.name ? "on": "off", unit: ""});
+                    mode.excludedAttributes = that.excludedAttributes[mode.deviceid] || ["None"];
+                    mode.excludedCapabilities = that.excludedCapabilities[mode.deviceid] || ["None"];
                     var accessory;
                     if (that.deviceLookup[mode.deviceid]) {
                         accessory = that.deviceLookup[mode.deviceid];
@@ -149,21 +189,76 @@ HE_ST_Platform.prototype = {
                 callback(accessories); 
         });
     },
+    loadHSM: function (accessories, callback) {
+        var that = this;
+        he_st_api.getAlarmState().then(function(response) {
+            if (response['hsmStatus'])
+            {
+                var alarmSystem = {};
+                alarmSystem.deviceid = 'hsm' + that.config['name'];
+                alarmSystem.label = 'Alarm System ' + that.config['name'];
+                alarmSystem.attr = [];
+                alarmSystem.attr.push ({name: "alarmSystemStatus", value: response['hsmStatus'], unit: ""});
+                alarmSystem.attributes = {};
+                alarmSystem.attributes["alarmSystemStatus"] = response['hsmStatus'];
+                alarmSystem.excludedAttributes = that.excludedAttributes[alarmSystem.deviceid] || ["None"];
+                alarmSystem.excludedCapabilities = that.excludedCapabilities[alarmSystem.deviceid] || ["None"]; 
+                var accessory;
+                if (that.deviceLookup[alarmSystem.deviceid]) {
+                    accessory = that.deviceLookup[alarmSystem.deviceid];
+                    accessory.loadData(alarmSystem);
+                }
+                else {
+                    accessory = new HE_ST_Accessory(that, 'alarmSystem', alarmSystem);
+                    if (accessory !== undefined) {
+                        if (accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
+                            if (that.firstpoll) {
+                                that.log('Device Skipped - Group ' + accessory.deviceGroup + ', Name ' + accessory.name + ', ID ' + accessory.deviceid + ', JSON: ' + JSON.stringify(device));
+                            }
+                        } else {
+                            that.log("Device Added - Group " + accessory.deviceGroup + ", Name " + accessory.name + ", ID " + accessory.deviceid); //+", JSON: "+ JSON.stringify(device));
+                            that.deviceLookup[accessory.deviceid] = accessory;
+                            accessories.push(accessory);
+                        }
+                    }
+                }
+                
+            }
+            if (callback)
+                callback(accessories); 
+        }).catch(function(error) { if (callback) callback(accessories);});
+    },
     reloadData: function(callback) {
         var that = this;
         // that.log('config: ', JSON.stringify(this.config));
         that.log.debug('Refreshing All Device Data');
         he_st_api.getDevices(function(myList) {
             that.processDevices(myList, function(data) {
-                if (that.enable_modes)
-                {
+                if (that.enable_modes) 
                     that.loadModes(data, function(data) {
-                        if (callback)
+                        if (that.enable_hsm)
+                            that.loadHSM(data, function(data) {
+                                if (callback) {
+                                    callback(data);
+                                    callback = undefined;
+                                }
+                            });
+                        else if (callback) {
                             callback(data);
-                    });
-                }
-                else if (callback)
+                            callback = undefined;
+                        }
+                    }); 
+                else if (that.enable_hsm) 
+                    that.loadHSM(data, function(data) {
+                        if (callback) {
+                            callback(data);
+                            callback = undefined;
+                        }
+                    }); 
+                else if (callback) {
                     callback(data);
+                    callback = undefined;
+                }
             });
         });
     },
@@ -177,8 +272,11 @@ HE_ST_Platform.prototype = {
         he_st_api.init(this.hubconnect_key);
         this.reloadData(function(foundAccessories) {
             callback(foundAccessories);
-            setInterval(that.reloadData.bind(that), that.polling_seconds * 1000);
+            //setInterval(that.reloadData.bind(that), that.polling_seconds * 1000);
+            setInterval(that.doVersionCheck.bind(that), 24 * 60 * 60 * 1000);
             he_st_api_SetupHTTPServer(that);
+            if (that.enable_hsm)
+                he_eventsocket_SetupWebSocket(that);
         });
     },
     isAttributeUsed: function(attribute, deviceid) {
@@ -218,7 +316,7 @@ HE_ST_Platform.prototype = {
         // that.log("Processing Update");
         // that.log(attributeSet);
         if (!(that.attributeLookup[attributeSet.attribute] && that.attributeLookup[attributeSet.attribute][attributeSet.device])) {
-            that.log('Attribute not found for device: ' + util.inspect(attributeSet, false, null, true));
+            //that.log('Attribute not found for device: ' + util.inspect(attributeSet, false, null, true));
             return;
         }
         var myUsage = that.attributeLookup[attributeSet.attribute][attributeSet.device];
@@ -336,6 +434,24 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
             }
         return res.json({status: "success"});
     });
+    app.get('/hsm/set/:state', function(req, res) {
+        myHe_st_api.log('Received set HSM State request for state: ' + req.params.state);
+        var newChange = {
+            device: 'hsm' + myHe_st_api.config['name'],
+            displayName: 'Alarm System ' + myHe_st_api.config['name'],
+            device:  'hsm' + myHe_st_api.config['name'],
+            attribute:  'alarmSystemStatus',
+            value: req.params.state,
+            date:  new Date()
+        };
+        myHe_st_api.processFieldUpdate(newChange, myHe_st_api);
+        return res.json({status: "success"});
+    });
+    
+    app.get('/system/update', function(req, res) {
+        return res.json({status: "success"});
+    });
+    
     app.get('*', function(req, res) {
         myHe_st_api.log('Unknown GET request: ' + req.path);
     });
@@ -378,53 +494,48 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     }, 60000);
     return 'good';
 }
-/*
+
 function he_eventsocket_SetupWebSocket(myHe_st_api) {
     const WebSocket = require('ws');
     var that = this;
     function connect(myHe_st_api) {
-        let ip = myHe_st_api.local_ip || getIPAddress();
         var r = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/;
-        var url = 'ws://' + myHe_st_api.app_url.match(r) + '/eventsocket';
+        var url = 'ws://' + myHe_st_api.api.getAppHost().match(r) + '/eventsocket';
+        myHe_st_api.log('attempt connection to ' + url);
+
         var ws = new WebSocket(url);
-        myHe_st_api.log('connect to ' + url);
         ws.onopen = function() {
+            myHe_st_api.log('connection to ' + url + ' established');
         };
-    
+
         ws.onmessage = function(e) {
             var jsonData = JSON.parse(e.data);
             var newChange = [];
-            if (jsonData['source'] === 'DEVICE')
-            {
-                newChange.push( { device: jsonData['deviceId'], attribute: jsonData['name'], value: jsonData['value'], date: new Date() , displayName: jsonData['displayName'] }  );
-            } 
-            else if (jsonData['source'] === 'LOCATION')
+            if (jsonData['source'] === 'LOCATION')
             {
                 switch (jsonData['name'])
                 {
-                    case 'hsmStatus':
-                        newChange.push( { device: 'alarmSystemStatus_' + jsonData['locationId'], attribute: 'alarmSystemStatus', value: jsonData['value'], date: new Date(), displayName: jsonData['displayName'] });
-                        break;
                     case 'hsmAlert':
-                        if (jsonData['value'] === 'intrusion')
+                        if (jsonData['value'] === 'cancel')
                         {
-                            newChange.push( { device: 'alarmSystemStatus_' + jsonData['locationId'], attribute: 'alarmSystemStatus', value: 'alarm_active', date: new Date(), displayName: jsonData['displayName'] });
+                            myHe_st_api.log('Received HSM Cancel');
+                            var acc = [];
+                            myHe_st_api.loadHSM(acc);
                         }
-                        break;
-                    case 'alarmSystemStatus':
-                        newChange.push( { device: 'alarmSystemStatus_' + jsonData['locationId'], attribute: 'alarmSystemStatus', value: jsonData['value'], date: new Date(), displayName: jsonData['displayName'] });
-                        break;
-                    case 'mode':
-                        myHe_st_api.deviceLookup.forEach(function (accessory)
+                        else
                         {
-                            if (accessory.deviceGroup === "mode")
-                            {
-                                if (accessory.name === "Mode - " + jsonData['value'])
-                                    newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'on', date: new Date(), displayName: accessory.name });
-                                else
-                                    newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'off', date: new Date(), displayName: accessory.name });
-                            }
-                        });
+                            myHe_st_api.log('Received HSM Alert');
+                            var change = {
+                                device: 'hsm' + myHe_st_api.config['name'],
+                                displayName: 'Alarm System ' + myHe_st_api.config['name'],
+                                device:  'hsm' + myHe_st_api.config['name'],
+                                attribute:  'alarmSystemStatus',
+                                value: 'alarm_active',
+                                date:  new Date()
+                            };
+
+                            newChange.push( change );
+                        }
                         break;
                 }
             }
@@ -451,7 +562,7 @@ function he_eventsocket_SetupWebSocket(myHe_st_api) {
     connect(myHe_st_api); 
 
 }
-
+/*
 function he_st_api_HandleHTTPResponse(request, response, myHe_st_api) {
     if (request.url === '/restart') {
         let delay = (10 * 1000);
