@@ -14,6 +14,10 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 ***v0.1.0*** - Reworked alot of the code to allow for communication with Hubitat HubConnect
 ***v0.1.4*** - Support of HSM if enabled, Attribute filtering for devices is possible
+<br>Fixed bug of not updating tiles in HomeKit after an hour expired
+<br>Fixed issuse with Siri, Show version number in logging output
+<br>Fixed issue with setting Thermostat temperature, make a device a Fan if it has the attributes switch and level and the device type contains the words "fan control"
+<br>configure homebridge to use Celsius
 <br>
 
 # Explanation:
@@ -62,6 +66,7 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2"></span>
    <span style="color: #f92672">&quot;hms&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">true</span><span style="color: #f8f8f2"></span>
+   <span style="color: #f92672">&quot;temperature_unit&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">"F"</span><span style="color: #f8f8f2"></span>
    <span style="color: #f92672">&quot;excluded_attributes&quot;</span><span style="color: #f8f8f2">: {</span>
    <span style="color: lightblue">    &quot;HUBITAT-DEVICE-ID-1&quot;</span><span style="color: #f8f8f2">: [</span>
    <span style="color: orange">       &quot;power&quot;</span><span style="color: #f8f8f2">,</span>
@@ -91,6 +96,10 @@ Installation comes in two parts:
 
  * <p><u>hsm</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
    Defaults to False<br>Creates a Alarm System icon in Homekit and allows your to arm and disarm your HSM</small></p>
+
+ * <p><u>temperature_unit</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+    Default to F<br>Ability to configure between Celsius and Fahrenheit. Possible values: "F" or "C"</small></p>
+
 
 ## Attribute Filtering
 The **homebridge-hubitat-hubconnect** creates Homekit devices based on the attributes of devices. 

@@ -40,12 +40,17 @@ module.exports = function(homebridge) {
 };
 
 function HE_ST_Platform(log, config, api) {
-    this.temperature_unit = 'F';
-    this.temperature_unit = config['temperature_unit'];
-    if (this.temperature_unit === undefined || this.temperature_unit === '' || (this.temperature_unit !== 'F' && this.temperature_unit !== 'C')) {
-        this.local_port = 'F';
+    if ((config === null) || (config === undefined))
+    {
+        this.disabled = true;
+        log('Plugin not configured in config.json, disabled plugin');
+        return null;
     }
+    
 
+    this.temperature_unit = config['temperature_unit'];
+    if (this.temperature_unit === null || this.temperature_unit === undefined || (this.temperature_unit !== 'F' && this.temperature_unit !== 'C'))
+        this.temperature_unit = 'F'; 
     this.hubconnect_key = config['hubconnect_key'];
     this.excludedAttributes = config["excluded_attributes"] || [];
     this.excludedCapabilities = config["excluded_capabilities"] || [];
@@ -73,12 +78,12 @@ function HE_ST_Platform(log, config, api) {
     this.api = he_st_api;
     this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + version);
 
-    this.versionCheck = require('./lib/npm_version_check')(pluginName,version,this.log,null);
-    this.doVersionCheck();
     this.deviceLookup = {};
     this.firstpoll = true;
     this.attributeLookup = {};
     this.hb_api = api;
+    this.versionCheck = require('./lib/npm_version_check')(pluginName,version,this.log,null);
+    this.doVersionCheck();
 }
 
 HE_ST_Platform.prototype = {
