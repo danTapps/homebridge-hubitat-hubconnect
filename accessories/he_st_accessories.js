@@ -316,9 +316,8 @@ function HE_ST_Accessory(platform, group, device) {
                         }
                     });
                 } else {
-                    platform.api.runCommand(callback, device.id, 'off');
+                    platform.api.runCommand(callback, device.id, 'off').then(function(resp) {
                         if (callback) {
-                            platform.log('triggering callback back to homekit');
                             callback(null, value);
                         }
                     }).catch(function(err) { 
@@ -686,7 +685,7 @@ function HE_ST_Accessory(platform, group, device) {
             })
             .on('set', function(value, callback) {
                 // platform.log('setAlarm: ' + value + ' | ' + convertAlarmState2(value));
-                platform.api.runCommand(device.deviceid, convertAlarmState(value)).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                platform.api.setAlarmState(convertAlarmState(value)).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
                 that.device.attributes.alarmSystemStatus = convertAlarmState(value);
             });
         platform.addAttributeUsage('alarmSystemStatus', device.deviceid, thisCharacteristic);
@@ -1064,26 +1063,26 @@ function convertAlarmState(value, valInt = false) {
         case 'armhome':
         case 'armedhome':
         case 0:
-            return valInt ? Characteristic.SecuritySystemCurrentState.STAY_ARM : 'stay';
+            return valInt ? Characteristic.SecuritySystemCurrentState.STAY_ARM : 'armHome';
         case 'away':
         case 'armaway':
         case 'armAway':
         case 'armedaway':
         case 'armedAway':
         case 1:
-            return valInt ? Characteristic.SecuritySystemCurrentState.AWAY_ARM : 'away';
+            return valInt ? Characteristic.SecuritySystemCurrentState.AWAY_ARM : 'armAway';
         case 'night':
         case 'armnight':
         case 'armNight':
         case 'armednight':
         case 'armedNight':
         case 2:
-            return valInt ? Characteristic.SecuritySystemCurrentState.NIGHT_ARM : 'night';
+            return valInt ? Characteristic.SecuritySystemCurrentState.NIGHT_ARM : 'armNight';
         case 'off':
         case 'disarm':
         case 'disarmed':
         case 3:
-            return valInt ? Characteristic.SecuritySystemCurrentState.DISARMED : 'off';
+            return valInt ? Characteristic.SecuritySystemCurrentState.DISARMED : 'disarm';
         case 'alarm_active':
         case 4:
             return valInt ? Characteristic.SecuritySystemCurrentState.ALARM_TRIGGERED : 'alarm_active';

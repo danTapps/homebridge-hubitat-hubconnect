@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.1.0```**
+**```Current App version: 0.1.4```**
 
 <br>
 
@@ -13,7 +13,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 #### Homebridge Plugin:
 
 ***v0.1.0*** - Reworked alot of the code to allow for communication with Hubitat HubConnect
-
+***v0.1.4*** - Support of HSM if enabled, Attribute filtering for devices is possible
 <br>
 
 # Explanation:
@@ -61,6 +61,7 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;mode_switches&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2"></span>
+   <span style="color: #f92672">&quot;hms&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">true</span><span style="color: #f8f8f2"></span>
    <span style="color: #f92672">&quot;excluded_attributes&quot;</span><span style="color: #f8f8f2">: {</span>
    <span style="color: lightblue">    &quot;HUBITAT-DEVICE-ID-1&quot;</span><span style="color: #f8f8f2">: [</span>
    <span style="color: orange">       &quot;power&quot;</span><span style="color: #f8f8f2">,</span>
@@ -87,6 +88,9 @@ Installation comes in two parts:
 
  * <p><u>excluded_attributes</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
    Defaults to None<br>Specify the Hubitat device by ID and the associated attributes you want homebridge-hubitat-makerapi to ignore. This prevents a Hubitat device from creating unwanted or redundant HomeKit accessories</small></p>
+
+ * <p><u>hsm</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
+   Defaults to False<br>Creates a Alarm System icon in Homekit and allows your to arm and disarm your HSM</small></p>
 
 ## Attribute Filtering
 The **homebridge-hubitat-hubconnect** creates Homekit devices based on the attributes of devices. 

@@ -67,11 +67,14 @@ function HE_ST_Platform(log, config, api) {
         this.local_ip = getIPAddress();
     }
     this.enable_modes = config['mode_switches'] || false;
+    this.enable_hsm = config['hsm'] || false;
 
     this.config = config;
     this.api = he_st_api;
     this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + version);
 
+    this.versionCheck = require('./lib/npm_version_check')(pluginName,version,this.log,null);
+    this.doVersionCheck();
     this.deviceLookup = {};
     this.firstpoll = true;
     this.attributeLookup = {};
@@ -79,6 +82,23 @@ function HE_ST_Platform(log, config, api) {
 }
 
 HE_ST_Platform.prototype = {
+    doVersionCheck: function (){
+        var that = this;
+        if (that.versionCheck)
+        {
+            that.versionCheck().then(function(resp){
+            /*    if (resp.versionCheckComplete && !resp.versionIsCurrent)
+                {
+                    if (that.version_speak_device != undefined && that.version_speak_device != null)
+                        that.log('send pushover');
+                        that.api.runCommand(that.version_speak_device, 'speak', {
+                                value1: ('a_newer_version_(' + resp.npm_version + ')_of_the_' + pluginName + '_plugin_is_available_on_NPMJS.')
+                            }).then(function(resp) { }).catch(function(err) { });
+                }*/
+            }).catch(function(resp){
+            });
+        }
+    },
     processDevices: function(myList, callback) {
         var that = this;
         var foundAccessories = [];
@@ -92,6 +112,8 @@ HE_ST_Platform.prototype = {
                     group.devices.forEach(function(device) {
                         that.log('device id: ' + device.id);
                         device.deviceid = device.id;
+                        device.excludedAttributes = that.excludedAttributes[device.deviceid] || ["None"];
+                        device.excludedCapabilities = that.excludedCapabilities[device.deviceid] || ["None"];
                         var accessory;
                         if (that.deviceLookup[device.deviceid]) {
                             accessory = that.deviceLookup[device.deviceid];
@@ -135,6 +157,8 @@ HE_ST_Platform.prototype = {
                     mode.label = 'Mode - ' + mode.name;
                     mode.attr = [];
                     mode.attr.push ({name: "switch", value: modes.active === mode.name ? "on": "off", unit: ""});
+                    mode.excludedAttributes = that.excludedAttributes[mode.deviceid] || ["None"];
+                    mode.excludedCapabilities = that.excludedCapabilities[mode.deviceid] || ["None"];
                     var accessory;
                     if (that.deviceLookup[mode.deviceid]) {
                         accessory = that.deviceLookup[mode.deviceid];
@@ -160,6 +184,43 @@ HE_ST_Platform.prototype = {
                 callback(accessories); 
         });
     },
+    loadHSM: function (accessories, callback) {
+        var that = this;
+        he_st_api.getAlarmState().then(function(response) {
+            if (response['hsmStatus'])
+            {
+                var alarmSystem = {};
+                alarmSystem.deviceid = 'hsm' + that.config['name'];
+                alarmSystem.label = 'Alarm System ' + that.config['name'];
+                alarmSystem.attr = [];
+                alarmSystem.attr.push ({name: "alarmSystemStatus", value: response['hsmStatus'], unit: ""});
+                alarmSystem.excludedAttributes = that.excludedAttributes[alarmSystem.deviceid] || ["None"];
+                alarmSystem.excludedCapabilities = that.excludedCapabilities[alarmSystem.deviceid] || ["None"]; 
+                var accessory;
+                if (that.deviceLookup[alarmSystem.deviceid]) {
+                    accessory = that.deviceLookup[alarmSystem.deviceid];
+                    //accessory.loadData(device);
+                }
+                else {
+                    accessory = new HE_ST_Accessory(that, 'alarmSystem', alarmSystem);
+                    if (accessory !== undefined) {
+                        if (accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
+                            if (that.firstpoll) {
+                                that.log('Device Skipped - Group ' + accessory.deviceGroup + ', Name ' + accessory.name + ', ID ' + accessory.deviceid + ', JSON: ' + JSON.stringify(device));
+                            }
+                        } else {
+                            that.log("Device Added - Group " + accessory.deviceGroup + ", Name " + accessory.name + ", ID " + accessory.deviceid); //+", JSON: "+ JSON.stringify(device));
+                            that.deviceLookup[accessory.deviceid] = accessory;
+                            accessories.push(accessory);
+                        }
+                    }
+                }
+                
+            }
+            if (callback)
+                callback(accessories); 
+        }).catch(function(error) { if (callback) callback(accessories);});
+    },
     reloadData: function(callback) {
         var that = this;
         // that.log('config: ', JSON.stringify(this.config));
@@ -167,12 +228,21 @@ HE_ST_Platform.prototype = {
         he_st_api.getDevices(function(myList) {
             that.processDevices(myList, function(data) {
                 if (that.enable_modes)
-                {
                     that.loadModes(data, function(data) {
+                        if (that.enable_hsm)
+                            that.loadHSM(data, function(data) {
+                                 if (callback)
+                                    callback(data);
+                            });
+                        else if (callback)
+                            callback(data);
+                    });
+                else if (that.enable_hsm)
+                    that.loadHSM(data, function(data) {
+                        console.log(data);
                         if (callback)
                             callback(data);
                     });
-                }
                 else if (callback)
                     callback(data);
             });
@@ -189,6 +259,7 @@ HE_ST_Platform.prototype = {
         this.reloadData(function(foundAccessories) {
             callback(foundAccessories);
             //setInterval(that.reloadData.bind(that), that.polling_seconds * 1000);
+            setInterval(that.doVersionCheck.bind(that), 24 * 60 * 60 * 1000);
             he_st_api_SetupHTTPServer(that);
         });
     },
@@ -347,6 +418,24 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
             }
         return res.json({status: "success"});
     });
+    app.get('/hsm/set/:state', function(req, res) {
+        myHe_st_api.log('Received set HSM State request for state: ' + req.params.state);
+        var newChange = {
+            device: 'hsm' + myHe_st_api.config['name'],
+            displayName: 'Alarm System ' + myHe_st_api.config['name'],
+            device:  'hsm' + myHe_st_api.config['name'],
+            attribute:  'alarmSystemStatus',
+            value: req.params.state,
+            date:  new Date()
+        };
+        myHe_st_api.processFieldUpdate(newChange, myHe_st_api);
+        return res.json({status: "success"});
+    });
+    
+    app.get('/system/update', function(req, res) {
+        return res.json({status: "success"});
+    });
+    
     app.get('*', function(req, res) {
         myHe_st_api.log('Unknown GET request: ' + req.path);
     });
