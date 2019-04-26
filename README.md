@@ -16,7 +16,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.1.4*** - Support of HSM if enabled, Attribute filtering for devices is possible
 <br>Fixed bug of not updating tiles in HomeKit after an hour expired
 <br>Fixed issuse with Siri, Show version number in logging output
-<br>Fixed issue with setting Thermostat temperature, make a device a Fan if it has the attributes switch and level and the device type contains the words "fan control"
+<br>Fixed issue with setting Thermostat temperature
 <br>configure homebridge to use Celsius
 <br>
 
