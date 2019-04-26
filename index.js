@@ -199,12 +199,14 @@ HE_ST_Platform.prototype = {
                 alarmSystem.label = 'Alarm System ' + that.config['name'];
                 alarmSystem.attr = [];
                 alarmSystem.attr.push ({name: "alarmSystemStatus", value: response['hsmStatus'], unit: ""});
+                alarmSystem.attributes = {};
+                alarmSystem.attributes["alarmSystemStatus"] = response['hsmStatus'];
                 alarmSystem.excludedAttributes = that.excludedAttributes[alarmSystem.deviceid] || ["None"];
                 alarmSystem.excludedCapabilities = that.excludedCapabilities[alarmSystem.deviceid] || ["None"]; 
                 var accessory;
                 if (that.deviceLookup[alarmSystem.deviceid]) {
                     accessory = that.deviceLookup[alarmSystem.deviceid];
-                    //accessory.loadData(device);
+                    accessory.loadData(alarmSystem);
                 }
                 else {
                     accessory = new HE_ST_Accessory(that, 'alarmSystem', alarmSystem);
@@ -232,24 +234,31 @@ HE_ST_Platform.prototype = {
         that.log.debug('Refreshing All Device Data');
         he_st_api.getDevices(function(myList) {
             that.processDevices(myList, function(data) {
-                if (that.enable_modes)
+                if (that.enable_modes) 
                     that.loadModes(data, function(data) {
                         if (that.enable_hsm)
                             that.loadHSM(data, function(data) {
-                                 if (callback)
+                                if (callback) {
                                     callback(data);
+                                    callback = undefined;
+                                }
                             });
-                        else if (callback)
+                        else if (callback) {
                             callback(data);
-                    });
-                else if (that.enable_hsm)
+                            callback = undefined;
+                        }
+                    }); 
+                else if (that.enable_hsm) 
                     that.loadHSM(data, function(data) {
-                        console.log(data);
-                        if (callback)
+                        if (callback) {
                             callback(data);
-                    });
-                else if (callback)
+                            callback = undefined;
+                        }
+                    }); 
+                else if (callback) {
                     callback(data);
+                    callback = undefined;
+                }
             });
         });
     },
@@ -266,6 +275,8 @@ HE_ST_Platform.prototype = {
             //setInterval(that.reloadData.bind(that), that.polling_seconds * 1000);
             setInterval(that.doVersionCheck.bind(that), 24 * 60 * 60 * 1000);
             he_st_api_SetupHTTPServer(that);
+            if (that.enable_hsm)
+                he_eventsocket_SetupWebSocket(that);
         });
     },
     isAttributeUsed: function(attribute, deviceid) {
@@ -483,53 +494,48 @@ function he_st_api_SetupHTTPServer(myHe_st_api) {
     }, 60000);
     return 'good';
 }
-/*
+
 function he_eventsocket_SetupWebSocket(myHe_st_api) {
     const WebSocket = require('ws');
     var that = this;
     function connect(myHe_st_api) {
-        let ip = myHe_st_api.local_ip || getIPAddress();
         var r = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/;
-        var url = 'ws://' + myHe_st_api.app_url.match(r) + '/eventsocket';
+        var url = 'ws://' + myHe_st_api.api.getAppHost().match(r) + '/eventsocket';
+        myHe_st_api.log('attempt connection to ' + url);
+
         var ws = new WebSocket(url);
-        myHe_st_api.log('connect to ' + url);
         ws.onopen = function() {
+            myHe_st_api.log('connection to ' + url + ' established');
         };
-    
+
         ws.onmessage = function(e) {
             var jsonData = JSON.parse(e.data);
             var newChange = [];
-            if (jsonData['source'] === 'DEVICE')
-            {
-                newChange.push( { device: jsonData['deviceId'], attribute: jsonData['name'], value: jsonData['value'], date: new Date() , displayName: jsonData['displayName'] }  );
-            } 
-            else if (jsonData['source'] === 'LOCATION')
+            if (jsonData['source'] === 'LOCATION')
             {
                 switch (jsonData['name'])
                 {
-                    case 'hsmStatus':
-                        newChange.push( { device: 'alarmSystemStatus_' + jsonData['locationId'], attribute: 'alarmSystemStatus', value: jsonData['value'], date: new Date(), displayName: jsonData['displayName'] });
-                        break;
                     case 'hsmAlert':
-                        if (jsonData['value'] === 'intrusion')
+                        if (jsonData['value'] === 'cancel')
                         {
-                            newChange.push( { device: 'alarmSystemStatus_' + jsonData['locationId'], attribute: 'alarmSystemStatus', value: 'alarm_active', date: new Date(), displayName: jsonData['displayName'] });
+                            myHe_st_api.log('Received HSM Cancel');
+                            var acc = [];
+                            myHe_st_api.loadHSM(acc);
                         }
-                        break;
-                    case 'alarmSystemStatus':
-                        newChange.push( { device: 'alarmSystemStatus_' + jsonData['locationId'], attribute: 'alarmSystemStatus', value: jsonData['value'], date: new Date(), displayName: jsonData['displayName'] });
-                        break;
-                    case 'mode':
-                        myHe_st_api.deviceLookup.forEach(function (accessory)
+                        else
                         {
-                            if (accessory.deviceGroup === "mode")
-                            {
-                                if (accessory.name === "Mode - " + jsonData['value'])
-                                    newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'on', date: new Date(), displayName: accessory.name });
-                                else
-                                    newChange.push( { device: accessory.deviceid, attribute: 'switch', value: 'off', date: new Date(), displayName: accessory.name });
-                            }
-                        });
+                            myHe_st_api.log('Received HSM Alert');
+                            var change = {
+                                device: 'hsm' + myHe_st_api.config['name'],
+                                displayName: 'Alarm System ' + myHe_st_api.config['name'],
+                                device:  'hsm' + myHe_st_api.config['name'],
+                                attribute:  'alarmSystemStatus',
+                                value: 'alarm_active',
+                                date:  new Date()
+                            };
+
+                            newChange.push( change );
+                        }
                         break;
                 }
             }
@@ -556,7 +562,7 @@ function he_eventsocket_SetupWebSocket(myHe_st_api) {
     connect(myHe_st_api); 
 
 }
-
+/*
 function he_st_api_HandleHTTPResponse(request, response, myHe_st_api) {
     if (request.url === '/restart') {
         let delay = (10 * 1000);

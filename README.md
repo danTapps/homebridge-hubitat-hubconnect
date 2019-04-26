@@ -12,7 +12,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 #### Homebridge Plugin:
 
-***v0.1.0*** - Reworked alot of the code to allow for communication with Hubitat HubConnect
+***v0.1.0*** - Reworked alot of the code to allow for communication with Hubitat HubConnect<br>
 ***v0.1.4*** - Support of HSM if enabled, Attribute filtering for devices is possible
 <br>Fixed bug of not updating tiles in HomeKit after an hour expired
 <br>Fixed issuse with Siri, Show version number in logging output
@@ -64,9 +64,9 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;hubconnect_key&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;THIS-SHOULD-BE-YOUR-CONNECTION-KEY&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;mode_switches&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
-   <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2"></span>
-   <span style="color: #f92672">&quot;hms&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">true</span><span style="color: #f8f8f2"></span>
-   <span style="color: #f92672">&quot;temperature_unit&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">"F"</span><span style="color: #f8f8f2"></span>
+   <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;hms&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">true</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;temperature_unit&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">"F"</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;excluded_attributes&quot;</span><span style="color: #f8f8f2">: {</span>
    <span style="color: lightblue">    &quot;HUBITAT-DEVICE-ID-1&quot;</span><span style="color: #f8f8f2">: [</span>
    <span style="color: orange">       &quot;power&quot;</span><span style="color: #f8f8f2">,</span>
