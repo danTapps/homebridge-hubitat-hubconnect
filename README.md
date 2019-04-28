@@ -19,6 +19,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 <br>Fixed issue with setting Thermostat temperature
 <br>configure homebridge to use Celsius
 <br>
+***v0.1.5*** - Fixed issue when a single device is assigned to several groups <br>
 
 # Explanation:
 

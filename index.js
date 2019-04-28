@@ -110,11 +110,36 @@ HE_ST_Platform.prototype = {
         that.log.debug('Received All Device Data');
         // success
         if (myList) {
+            var fullDeviceList = {};
             myList.forEach(function(group) {
-                that.log('loading group: ' + group.deviceclass);
-                if (group.devices)
-                {
-                    group.devices.forEach(function(device) {
+                if (group.devices) {
+                    group.devices.forEach(function(device){
+                        if (fullDeviceList[device.id]) {
+                            if (fullDeviceList[device.id].attr && device.attr)
+                                fullDeviceList[device.id].attr = fullDeviceList[device.id].attr.concat(device.attr);
+                            else if (!(fullDeviceList[device.id].attr) && device.attr)
+                                fullDeviceList[device.id].attr = device.attr;
+                            if ((fullDeviceList[device.id].commands) && (device.commands)) {
+                                fullDeviceList[device.id].commands = Object.assign( {}, fullDeviceList[device.id].commands, device.commands);
+                            } else if (!(fullDeviceList[device.id].commands) && (device.commands))
+                                fullDeviceList[device.id].commands = device.commands;
+                        } else {
+                            fullDeviceList[device.id] = device;
+                            fullDeviceList[device.id].group = group.deviceclass;
+                        }
+                    });
+                }
+            });
+            for (var key in fullDeviceList) {
+                device = fullDeviceList[key];
+                group = {};
+                group.deviceclass = fullDeviceList[key].group;
+
+//            myList.forEach(function(group) {
+//                that.log('loading group: ' + group.deviceclass);
+//                if (group.devices)
+//                {
+//                    group.devices.forEach(function(device) {
                         that.log('device id: ' + device.id);
                         device.deviceid = device.id;
                         device.excludedAttributes = that.excludedAttributes[device.deviceid] || ["None"];
@@ -138,9 +163,9 @@ HE_ST_Platform.prototype = {
                                 }
                             }
                         }
-                    });
+                    //});
                 }
-            });
+            //});
         } else if (!myList || !myList.error) {
             that.log('Invalid Response from API call');
         } else if (myList.error) {
