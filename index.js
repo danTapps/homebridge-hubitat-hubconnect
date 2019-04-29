@@ -104,53 +104,101 @@ HE_ST_Platform.prototype = {
             });
         }
     },
-    processDevices: function(myList, callback) {
+    processDevices: function(myList) {
         var that = this;
-        var foundAccessories = [];
-        that.log.debug('Received All Device Data');
-        // success
-        if (myList) {
-            var fullDeviceList = {};
-            myList.forEach(function(group) {
-                if (group.devices) {
-                    group.devices.forEach(function(device){
-                        if (fullDeviceList[device.id]) {
-                            if (fullDeviceList[device.id].attr && device.attr)
-                                fullDeviceList[device.id].attr = fullDeviceList[device.id].attr.concat(device.attr);
-                            else if (!(fullDeviceList[device.id].attr) && device.attr)
-                                fullDeviceList[device.id].attr = device.attr;
-                            if ((fullDeviceList[device.id].commands) && (device.commands)) {
-                                fullDeviceList[device.id].commands = Object.assign( {}, fullDeviceList[device.id].commands, device.commands);
-                            } else if (!(fullDeviceList[device.id].commands) && (device.commands))
-                                fullDeviceList[device.id].commands = device.commands;
-                        } else {
-                            fullDeviceList[device.id] = device;
-                            fullDeviceList[device.id].group = group.deviceclass;
-                        }
-                    });
-                }
-            });
-            for (var key in fullDeviceList) {
-                device = fullDeviceList[key];
-                group = {};
-                group.deviceclass = fullDeviceList[key].group;
-
-//            myList.forEach(function(group) {
-//                that.log('loading group: ' + group.deviceclass);
-//                if (group.devices)
-//                {
-//                    group.devices.forEach(function(device) {
-                        that.log('device id: ' + device.id);
-                        device.deviceid = device.id;
-                        device.excludedAttributes = that.excludedAttributes[device.deviceid] || ["None"];
-                        device.excludedCapabilities = that.excludedCapabilities[device.deviceid] || ["None"];
+        return new Promise(function(resolve, reject) {
+            var foundAccessories = [];
+            that.log.debug('Received All Device Data');
+            // success
+            if (myList) {
+                var fullDeviceList = {};
+                myList.forEach(function(group) {
+                    if (group.devices) {
+                        group.devices.forEach(function(device){
+                            if (fullDeviceList[device.id]) {
+                                if (fullDeviceList[device.id].attr && device.attr)
+                                    fullDeviceList[device.id].attr = fullDeviceList[device.id].attr.concat(device.attr);
+                                else if (!(fullDeviceList[device.id].attr) && device.attr)
+                                    fullDeviceList[device.id].attr = device.attr;
+                                if ((fullDeviceList[device.id].commands) && (device.commands)) {
+                                    fullDeviceList[device.id].commands = Object.assign( {}, fullDeviceList[device.id].commands, device.commands);
+                                } else if (!(fullDeviceList[device.id].commands) && (device.commands))
+                                    fullDeviceList[device.id].commands = device.commands;
+                            } else {
+                                fullDeviceList[device.id] = device;
+                                fullDeviceList[device.id].group = group.deviceclass;
+                            }
+                        });
+                    }
+                });
+                for (var key in fullDeviceList) {
+                    device = fullDeviceList[key];
+                    group = {};
+                    group.deviceclass = fullDeviceList[key].group;
+    
+    //            myList.forEach(function(group) {
+    //                that.log('loading group: ' + group.deviceclass);
+    //                if (group.devices)
+    //                {
+    //                    group.devices.forEach(function(device) {
+                            that.log('device id: ' + device.id);
+                            device.deviceid = device.id;
+                            device.excludedAttributes = that.excludedAttributes[device.deviceid] || ["None"];
+                            device.excludedCapabilities = that.excludedCapabilities[device.deviceid] || ["None"];
+                            var accessory;
+                            if (that.deviceLookup[device.deviceid]) {
+                                accessory = that.deviceLookup[device.deviceid];
+                                //accessory.loadData(device);
+                            }
+                            else {
+                                accessory = new HE_ST_Accessory(that, group.deviceclass, device);
+                                if (accessory !== undefined) {
+                                    if (accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
+                                        if (that.firstpoll) {
+                                            that.log('Device Skipped - Group ' + accessory.deviceGroup + ', Name ' + accessory.name + ', ID ' + accessory.deviceid + ', JSON: ' + JSON.stringify(device));
+                                        }
+                                    } else {
+                                        // that.log("Device Added - Group " + accessory.deviceGroup + ", Name " + accessory.name + ", ID " + accessory.deviceid); //+", JSON: "+ JSON.stringify(device));
+                                        that.deviceLookup[accessory.deviceid] = accessory;
+                                        foundAccessories.push(accessory);
+                                    }
+                                }
+                            }
+                        //});
+                    }
+                //});
+            } else if (!myList || !myList.error) {
+                that.log('Invalid Response from API call');
+            } else if (myList.error) {
+                that.log('Error received type ' + myList.type + ' - ' + myList.message);
+            } else {
+                that.log('Invalid Response from API call');
+            }
+            that.firstpoll = false;
+            resolve(foundAccessories);
+        });
+    },
+    loadModes: function(accessories, callback) {
+        var that = this;
+        return new Promise(function(resolve, reject) {
+            he_st_api.getModes(function(modes) {
+                if ((modes) && that.enable_modes)
+                {
+                    modes.modes.forEach(function(mode) {
+                        that.log('mode: ' + mode.name);
+                        mode.deviceid = 10000 + mode.id;
+                        mode.label = 'Mode - ' + mode.name;
+                        mode.attr = [];
+                        mode.attr.push ({name: "switch", value: modes.active === mode.name ? "on": "off", unit: ""});
+                        mode.excludedAttributes = that.excludedAttributes[mode.deviceid] || ["None"];
+                        mode.excludedCapabilities = that.excludedCapabilities[mode.deviceid] || ["None"];
                         var accessory;
-                        if (that.deviceLookup[device.deviceid]) {
-                            accessory = that.deviceLookup[device.deviceid];
+                        if (that.deviceLookup[mode.deviceid]) {
+                            accessory = that.deviceLookup[mode.deviceid];
                             //accessory.loadData(device);
                         }
                         else {
-                            accessory = new HE_ST_Accessory(that, group.deviceclass, device);
+                            accessory = new HE_ST_Accessory(that, 'mode', mode);
                             if (accessory !== undefined) {
                                 if (accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
                                     if (that.firstpoll) {
@@ -159,132 +207,76 @@ HE_ST_Platform.prototype = {
                                 } else {
                                     // that.log("Device Added - Group " + accessory.deviceGroup + ", Name " + accessory.name + ", ID " + accessory.deviceid); //+", JSON: "+ JSON.stringify(device));
                                     that.deviceLookup[accessory.deviceid] = accessory;
-                                    foundAccessories.push(accessory);
+                                    accessories.push(accessory);
                                 }
                             }
-                        }
-                    //});
+                        } 
+                    }); 
                 }
-            //});
-        } else if (!myList || !myList.error) {
-            that.log('Invalid Response from API call');
-        } else if (myList.error) {
-            that.log('Error received type ' + myList.type + ' - ' + myList.message);
-        } else {
-            that.log('Invalid Response from API call');
-        }
-        if (callback) callback(foundAccessories);
-        that.firstpoll = false;
+                resolve(accessories);
+            });
+        });
     },
-    loadModes: function(accessories, callback) {
+    loadHSM: function (accessories, callback) {
         var that = this;
-        he_st_api.getModes(function(modes) {
-            if ((modes) && that.enable_modes)
-            {
-                modes.modes.forEach(function(mode) {
-                    that.log('mode: ' + mode.name);
-                    mode.deviceid = 10000 + mode.id;
-                    mode.label = 'Mode - ' + mode.name;
-                    mode.attr = [];
-                    mode.attr.push ({name: "switch", value: modes.active === mode.name ? "on": "off", unit: ""});
-                    mode.excludedAttributes = that.excludedAttributes[mode.deviceid] || ["None"];
-                    mode.excludedCapabilities = that.excludedCapabilities[mode.deviceid] || ["None"];
+        return new Promise(function(resolve, reject) {
+            he_st_api.getAlarmState().then(function(response) {
+                if (response['hsmStatus'])
+                {
+                    var alarmSystem = {};
+                    alarmSystem.deviceid = 'hsm' + that.config['name'];
+                    alarmSystem.label = 'Alarm System ' + that.config['name'];
+                    alarmSystem.attr = [];
+                    alarmSystem.attr.push ({name: "alarmSystemStatus", value: response['hsmStatus'], unit: ""});
+                    alarmSystem.attributes = {};
+                    alarmSystem.attributes["alarmSystemStatus"] = response['hsmStatus'];
+                    alarmSystem.excludedAttributes = that.excludedAttributes[alarmSystem.deviceid] || ["None"];
+                    alarmSystem.excludedCapabilities = that.excludedCapabilities[alarmSystem.deviceid] || ["None"]; 
                     var accessory;
-                    if (that.deviceLookup[mode.deviceid]) {
-                        accessory = that.deviceLookup[mode.deviceid];
-                        //accessory.loadData(device);
+                    if (that.deviceLookup[alarmSystem.deviceid]) {
+                        accessory = that.deviceLookup[alarmSystem.deviceid];
+                        accessory.loadData(alarmSystem);
                     }
                     else {
-                        accessory = new HE_ST_Accessory(that, 'mode', mode);
+                        accessory = new HE_ST_Accessory(that, 'alarmSystem', alarmSystem);
                         if (accessory !== undefined) {
                             if (accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
                                 if (that.firstpoll) {
                                     that.log('Device Skipped - Group ' + accessory.deviceGroup + ', Name ' + accessory.name + ', ID ' + accessory.deviceid + ', JSON: ' + JSON.stringify(device));
                                 }
                             } else {
-                                // that.log("Device Added - Group " + accessory.deviceGroup + ", Name " + accessory.name + ", ID " + accessory.deviceid); //+", JSON: "+ JSON.stringify(device));
+                                that.log("Device Added - Group " + accessory.deviceGroup + ", Name " + accessory.name + ", ID " + accessory.deviceid); //+", JSON: "+ JSON.stringify(device));
                                 that.deviceLookup[accessory.deviceid] = accessory;
                                 accessories.push(accessory);
                             }
                         }
-                    } 
-                }); 
-            }
-            if (callback)
-                callback(accessories); 
-        });
-    },
-    loadHSM: function (accessories, callback) {
-        var that = this;
-        he_st_api.getAlarmState().then(function(response) {
-            if (response['hsmStatus'])
-            {
-                var alarmSystem = {};
-                alarmSystem.deviceid = 'hsm' + that.config['name'];
-                alarmSystem.label = 'Alarm System ' + that.config['name'];
-                alarmSystem.attr = [];
-                alarmSystem.attr.push ({name: "alarmSystemStatus", value: response['hsmStatus'], unit: ""});
-                alarmSystem.attributes = {};
-                alarmSystem.attributes["alarmSystemStatus"] = response['hsmStatus'];
-                alarmSystem.excludedAttributes = that.excludedAttributes[alarmSystem.deviceid] || ["None"];
-                alarmSystem.excludedCapabilities = that.excludedCapabilities[alarmSystem.deviceid] || ["None"]; 
-                var accessory;
-                if (that.deviceLookup[alarmSystem.deviceid]) {
-                    accessory = that.deviceLookup[alarmSystem.deviceid];
-                    accessory.loadData(alarmSystem);
-                }
-                else {
-                    accessory = new HE_ST_Accessory(that, 'alarmSystem', alarmSystem);
-                    if (accessory !== undefined) {
-                        if (accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
-                            if (that.firstpoll) {
-                                that.log('Device Skipped - Group ' + accessory.deviceGroup + ', Name ' + accessory.name + ', ID ' + accessory.deviceid + ', JSON: ' + JSON.stringify(device));
-                            }
-                        } else {
-                            that.log("Device Added - Group " + accessory.deviceGroup + ", Name " + accessory.name + ", ID " + accessory.deviceid); //+", JSON: "+ JSON.stringify(device));
-                            that.deviceLookup[accessory.deviceid] = accessory;
-                            accessories.push(accessory);
-                        }
                     }
                 }
-                
-            }
-            if (callback)
-                callback(accessories); 
-        }).catch(function(error) { if (callback) callback(accessories);});
+                resolve(accessories);
+            }).catch(function(error) {
+                resolve(accessories);
+            });
+        });
     },
     reloadData: function(callback) {
         var that = this;
         // that.log('config: ', JSON.stringify(this.config));
         that.log.debug('Refreshing All Device Data');
         he_st_api.getDevices(function(myList) {
-            that.processDevices(myList, function(data) {
-                if (that.enable_modes) 
-                    that.loadModes(data, function(data) {
-                        if (that.enable_hsm)
-                            that.loadHSM(data, function(data) {
-                                if (callback) {
-                                    callback(data);
-                                    callback = undefined;
-                                }
-                            });
-                        else if (callback) {
-                            callback(data);
-                            callback = undefined;
-                        }
-                    }); 
-                else if (that.enable_hsm) 
-                    that.loadHSM(data, function(data) {
-                        if (callback) {
-                            callback(data);
-                            callback = undefined;
-                        }
-                    }); 
-                else if (callback) {
+            that.processDevices(myList).then(function(data) {
+                if (that.enable_modes)
+                    that.loadModes(data);
+            }).then(function(data) {
+                 if (that.enable_hsm)
+                    that.loadHSM(data);
+            }).then(function(data) {
+                if (callback)
                     callback(data);
-                    callback = undefined;
-                }
+                callback = undefined;
+            }).catch(function(error) {
+                that.log.error('A weird error occured, let dan.t know in the hubitat forums', error);        
             });
+            
         });
     },
     accessories: function(callback) {
