@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.1.4```**
+**```Current App version: 0.2.0```**
 
 <br>
 
@@ -20,6 +20,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 <br>configure homebridge to use Celsius
 <br>
 ***v0.1.5*** - Fixed issue when a single device is assigned to several groups <br>
+***v0.2.0*** - migrated to dynamic homebridge platform that removes the need of restarting homebridge after a device selection was changed in HubConnect, configure homebridge to use Celsius, fixed fan tile on/off functionallity, ability to create switch tiles for modes and switching of modes, HSM integration, perform daily version check against NPMJS and print logging statement on newer versions available, streamline code to share improvements with homebridge-hubitat-makerapi, ability to exclude attributes<br>
 
 # Explanation:
 

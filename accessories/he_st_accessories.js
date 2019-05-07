@@ -1,7 +1,8 @@
 var inherits = require('util').inherits;
-var Accessory, Service, Characteristic, uuid, CommunityTypes, platformName;
+var Accessory, Service, Characteristic, uuid, CommunityTypes, platformName, capabilityToAttributeMap;
 const util = require('util');
-const pluginName = 'homebridge-hubitat-hubconnect';
+var version = require('../package.json').version;
+
 /*
  *   HE_ST Accessory
  */
@@ -13,91 +14,208 @@ module.exports = function(oAccessory, oService, oCharacteristic, oPlatformAccess
         Characteristic = oCharacteristic;
         CommunityTypes = require('../lib/communityTypes')(Service, Characteristic);
         uuid = ouuid;
-
-        inherits(HE_ST_Accessory, Accessory);
+        capabilityToAttributeMap = require('./exclude_capability').capabilityToAttributeMap();
+//        inherits(HE_ST_Accessory, Accessory);
         HE_ST_Accessory.prototype.loadData = loadData;
         HE_ST_Accessory.prototype.getServices = getServices;
     }
     return HE_ST_Accessory;
 };
 module.exports.HE_ST_Accessory = HE_ST_Accessory;
+module.exports.uuidGen = uuidGen;
+module.exports.uuidDecrypt = uuidDecrypt;
 
+function uuidGen(deviceid)
+{
+    return uuid.generate('hbdev:' + platformName.toLowerCase() + ':' + deviceid);
+}
+function uuidDecrypt(buffer)
+{
+    return uuid.unparse(buffer);
+}
 function toTitleCase(str) {
     return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
 }
-
-function HE_ST_Accessory(platform, group, device) {
-//     console.log("HE_ST_Accessory: ", platform, util.inspect(device, false, null, true));
+function dump(name, inVar) {
+    console.log(inVar);
+    for (var k in inVar.accessory.services) {
+            console.log(name + ':ser:' + inVar.accessory.services[k].UUID +':'+inVar.accessory.services[k].displayName);
+            for (var l in inVar.accessory.services[k].optionalCharacteristics) {
+                    console.log(name + ':opt:'.inVar.accessory.services[k].optionalCharacteristics[l].UUID+':'+inVar.accessory.services[k].optionalCharacteristics[l].displayName);
+            }
+            for (var l in inVar.accessory.services[k].characteristics) {
+                    console.log(name + ':cha:'.inVar.accessory.services[k].characteristics[l].UUID+':'+inVar.accessory.services[k].characteristics[l].displayName);
+            }
+    }
+}
+function HE_ST_Accessory(platform, group, device, accessory) {
+    // console.log("HE_ST_Accessory: ", platform, util.inspect(device, false, null, true));
     this.deviceid = device.deviceid;
-    this.name = device.label;
+    this.name = device.name;
     this.platform = platform;
     this.state = {};
-
     this.device = device;
-    if (this.device.attr)
-        this.device.attributes = platform.api.reOrgAttributes(this.device.attr);
-    else if (!this.device.attributes)
-        this.device.attributes = {};
-    if (!this.device.commands)
-        this.device.commands = {};
-    var idKey = 'hbdev:' + platformName.toLowerCase() + ':' + this.deviceid;
-    var id = uuid.generate(idKey);
-    Accessory.call(this, this.name, id);
+    this.unregister = false;
+    var id = uuidGen(this.deviceid);
+    //Accessory.call(this, this.name, id);
+      
+    if ((accessory !== undefined) && (accessory !== null))
+        this.accessory = accessory;
+    else
+        this.accessory = new Accessory(this.name, id);
+    this.accessory.name = this.name;
+    this.accessory.getServices = function() { return this.accessory.services };
     var that = this;
-
     function deviceIsFan()
     {
+        if (device.attributes && device.attributes.hasOwnProperty('speed'))
+            return true;
+        if (device.commands && device.commands.hasOwnProperty('setSpeed'))
+            return true;
+        if (device.capabilities && device.capabilities.hasOwnProperty('FanControl'))
+            return true;
         if ((device.type) && ((device.type.toLowerCase().indexOf('fan control') > -1) || (device.type.toLowerCase().indexOf('fan component') > -1)))
             return true;
         return false;
     }
     function deviceHasAttributeCommand(attribute, command)
     {
-        return (device.attributes.hasOwnProperty(attribute) && device.commands.hasOwnProperty(command));
+        return (that.device.attributes.hasOwnProperty(attribute) && that.device.commands.hasOwnProperty(command));
+    }
+    
+
+    if ((accessory !== null) && (accessory !==undefined))
+    {
+        removeExculdedAttributes();
     }
     //Removing excluded attributes from config
-    for (var i = 0; i < device.excludedAttributes.length; i++) {
+    for (var i = 0; i < that.device.excludedAttributes.length; i++) {
         let excludedAttribute = device.excludedAttributes[i];
-        if (device.attributes.hasOwnProperty(excludedAttribute)) {
+        if (that.device.attributes.hasOwnProperty(excludedAttribute)) {
             platform.log("Removing attribute: " + excludedAttribute + " for device: " + device.name);
-            delete device.attributes[excludedAttribute];
+            delete that.device.attributes[excludedAttribute];
+        }
+    }
+    for (var i = 0; i < that.device.excludedCapabilities.length; i++) {
+        let excludedCapability = device.excludedCapabilities[i].toLowerCase();
+        if (that.device.capabilities.hasOwnProperty(excludedCapability)) {
+            Object.keys(capabilityToAttributeMap).forEach(function(key) {
+                if (key === excludedCapability) {
+                    platform.log("Removing capability: " + excludedCapability + " for device: " + device.name); 
+                    for (var k = 0; k < capabilityToAttributeMap[key].length; k++)
+                    {
+                        var excludedAttribute = capabilityToAttributeMap[key][k];
+                        if (that.device.attributes.hasOwnProperty(excludedAttribute)) {
+                            delete that.device.attributes[excludedAttribute];
+                        }
+                    }
+                }   
+            });
         }
     }
 
-    that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Identify, (that.device.attributes.hasOwnProperty('switch')));
-    that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Name, that.name);
-    if (device.firmwareVersion) that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.FirmwareRevision, device.firmwareVersion);
-    if (device.manufacturerName) that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Manufacturer, device.manufacturerName);
-    if (device.modelName) that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Model, `${toTitleCase(device.modelName)}`);
-//    if (device.serialNumber) that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.SerialNumber, device.serialNumber);    
-    that.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.SerialNumber, (group==='mode'? 'mode':'device')+':'+device.deviceid);
-  
+    //Removing excluded attributes from config
+    function removeExculdedAttributes() {
+        //that.platform.log('Having a cached accessory, build a duplicate and see if I can detect obsolete characteristics');
+        var newAccessory = new HE_ST_Accessory(platform, group, device);
+        //console.log('accessory', that.accessory.services);
+        //console.log('newAccessory', newAccessory.accessory.services);
+
+        for (var k in that.accessory.services) {
+            for (var l in that.accessory.services[k].optionalCharacteristics) {
+                var remove = true;
+                for (var j in newAccessory.accessory.services) {
+                    for (var t in newAccessory.accessory.services[j].optionalCharacteristics) {
+                        if (that.accessory.services[k].optionalCharacteristics[l].UUID === newAccessory.accessory.services[j].optionalCharacteristics[t].UUID)
+                            remove = false;
+                    }
+                }
+                if (remove === true)
+                    that.accessory.services[k].removeCharacteristic(that.accessory.services[k].optionalCharacteristics[l]);
+            }
+            
+            for (var l in that.accessory.services[k].characteristics) {
+                var remove = true;
+                for (var j in newAccessory.accessory.services) {
+                    for (var t in newAccessory.accessory.services[j].characteristics) {
+                        if (that.accessory.services[k].characteristics[l].UUID === newAccessory.accessory.services[j].characteristics[t].UUID)
+                            remove = false;
+                    }
+                }
+                if (remove === true)
+                    that.accessory.services[k].removeCharacteristic(that.accessory.services[k].optionalCharacteristics[l]);
+            }
+            var removeService = true;
+            for (var l in newAccessory.accessory.services) {
+                if (newAccessory.accessory.services[l].UUID === that.accessory.services[k].UUID)
+                    removeService = false;
+            }
+            if (removeService === true)
+                that.accessory.removeService(that.accessory.services[k]);
+        }
+        //console.log('accessory', that.accessory.services);
+        //console.log('newAccessory', newAccessory.accessory.services);
+        return;
+    }
+
     that.getaddService = function(Service) {
-        var myService = that.getService(Service);
+        var myService = that.accessory.getService(Service);
         if (!myService) {
-            myService = that.addService(Service);
+            myService = that.accessory.addService(Service);
+        }
+        return myService;
+    };    
+
+    that.getaddService(Service.AccessoryInformation).setCharacteristic(Characteristic.Name, that.name);
+    that.accessory.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.FirmwareRevision, version);
+    that.accessory.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Manufacturer, 'Hubitat');
+    that.accessory.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.Model, platformName);
+    that.accessory.getService(Service.AccessoryInformation).setCharacteristic(Characteristic.SerialNumber, group+':'+device.deviceid);
+    that.accessory.on('identify', function(paired, callback) {
+        that.platform.log("%s - identify", that.accessory.displayName);
+        callback();
+    });
+    
+    that.getaddService = function(Service) {
+        var myService = that.accessory.getService(Service);
+        if (!myService) {
+            myService = that.accessory.addService(Service);
         }
         return myService;
     };
     that.deviceGroup = 'unknown'; // that way we can easily tell if we set a device group
     var thisCharacteristic;
+    that.accessory.updateReachability(true);
     //platform.log('loading device: ' + JSON.stringify(device));
-    that.deviceGroup = group;
 
     if (group === "mode") {
-        platform.log('Mode: (' + that.name + ')');
+        that.deviceGroup = "mode";
         thisCharacteristic = that.getaddService(Service.Switch).getCharacteristic(Characteristic.On)
             .on('get', function(callback) {
                 callback(null, that.device.attributes.switch === 'on');
             })
             .on('set', function(value, callback) {
                 if (value && that.device.attributes.switch === 'off') {
-                    platform.api.setMode(device.deviceid, that.name.toString().replace('Mode - ', '')).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                    platform.api.setMode(that.device.attributes.modeid).then(function(resp){callback(null, false);}).catch(function(err){callback(err);});
                 }
             });
         platform.addAttributeUsage('switch', device.deviceid, thisCharacteristic);
     }
-    if (device.attributes.hasOwnProperty('thermostatOperatingState')) {
+    if (group === "reboot") {
+        that.deviceGroup = "reboot";
+        thisCharacteristic = that.getaddService(Service.Switch).getCharacteristic(Characteristic.On)
+            .on('get', function(callback) {
+                callback(null, false);
+            })
+            .on('set', function(value, callback) {
+                if (value) {
+                    platform.api.rebootHub().then(function(resp){callback(null, false);}).catch(function(err){callback(err);});
+                }
+            });
+        platform.addAttributeUsage('reboot', device.deviceid, thisCharacteristic);
+    }
+    if (that.device.attributes.hasOwnProperty('thermostatOperatingState')) {
+        that.deviceGroup = "thermostat";
             thisCharacteristic = that.getaddService(Service.Thermostat).getCharacteristic(Characteristic.CurrentHeatingCoolingState)
                 .on('get', function(callback) {
                     switch (that.device.attributes.thermostatOperatingState) {
@@ -158,7 +276,7 @@ function HE_ST_Accessory(platform, group, device) {
                     }
                 });
             platform.addAttributeUsage('thermostatMode', device.deviceid, thisCharacteristic);
-            if (device.attributes.hasOwnProperty('humidity')) {
+            if (that.device.attributes.hasOwnProperty('humidity')) {
                 thisCharacteristic = that.getaddService(Service.Thermostat).getCharacteristic(Characteristic.CurrentRelativeHumidity)
                     .on('get', function(callback) {
                         callback(null, parseInt(that.device.attributes.humidity));
@@ -223,7 +341,13 @@ function HE_ST_Accessory(platform, group, device) {
                         case 'heat':
                             platform.api.runCommand(device.deviceid, 'setHeatingSetpoint', {
                                 value1: temp
-                            }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                            }).then(function(resp) {
+                                if (callback) 
+                                    callback(null, value); 
+                            }).catch(function(err) {
+                                if (callback) 
+                                    callback(err); 
+                            });
                             that.device.attributes.heatingSetpoint = temp;
                             break;
                         default:
@@ -303,7 +427,7 @@ function HE_ST_Accessory(platform, group, device) {
                 });
             platform.addAttributeUsage('coolingSetpoint', device.deviceid, thisCharacteristic);
         }
-    if (device.attributes.hasOwnProperty('switch') && group !== 'mode')
+    if (that.device.attributes.hasOwnProperty('switch') && group !== 'mode' && !deviceIsFan())
     {
         var serviceType = null;
         if (deviceHasAttributeCommand('level', 'setLevel') || deviceHasAttributeCommand('hue', 'setHue') || deviceHasAttributeCommand('saturation', 'setSaturation'))
@@ -321,6 +445,7 @@ function HE_ST_Accessory(platform, group, device) {
         }
         else
         {
+            that.deviceGroup = "switch";
             serviceType = Service.Switch;
         }
 
@@ -346,7 +471,7 @@ function HE_ST_Accessory(platform, group, device) {
     }
     if (deviceHasAttributeCommand('level', 'setLevel'))
     {
-        if (group === "windowshade")
+        if (group === "windowshade")   //TODO!!!!!
         {
             thisCharacteristic = that.getaddService(Service.WindowCovering).getCharacteristic(Characteristic.TargetPosition)
                     .on('get', function(callback) {
@@ -368,28 +493,59 @@ function HE_ST_Accessory(platform, group, device) {
         }
         else
         {
-            if (deviceIsFan())
+            if ((deviceIsFan() === true) && (deviceHasAttributeCommand('speed', 'setSpeed') === true))
             {
-                //do nothing, we do you later.....
+                delete that.device.attributes['speed'];
             }
-            else
-            {
-                thisCharacteristic = that.getaddService(Service.Lightbulb).getCharacteristic(Characteristic.Brightness)
+                var serviceType = Service.Lightbulb;
+                var characteristicType = Characteristic.Brightness;
+                var factor = 1;
+                if (deviceIsFan()) {
+                    serviceType = Service.Fanv2;
+                    characteristicType = Characteristic.RotationSpeed;
+                    factor = 2.55;
+                    this.deviceGroup = "fan";
+                    thisCharacteristic = that.getaddService(Service.Fanv2).getCharacteristic(Characteristic.Active)
+                        .on('get', function(callback) {
+                            callback(null, that.device.attributes.level>0);
+                        })
+                        .on('set', function(value,callback) {
+                            if (value === 0)
+                                platform.api.runCommand(device.deviceid, "setLevel", {
+                                    value1: "0"
+                                }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                            else
+                            {
+                                var fanValue = that.device.attributes.level;
+                                if (fanValue === 0)
+                                    fanValue = "100";
+                                platform.api.runCommand(device.deviceid, "setSpeed", {
+                                    value1: fanValue
+                                }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                            }
+                        });
+                        platform.addAttributeUsage('level', device.deviceid, thisCharacteristic);
+                }
+
+                thisCharacteristic = that.getaddService(serviceType).getCharacteristic(characteristicType)
                     .on('get', function(callback) {
-                        callback(null, parseInt(that.device.attributes.level));
+                    //    callback(null, parseInt(Math.round(that.device.attributes.level*factor)));
+                        callback(null, that.device.attributes.level);
                     })
                     .on('set', function(value, callback) {
+                        that.platform.log('set value'+value+' factor:'+factor+' math:'+Math.round(value/factor));
                         platform.api.runCommand(device.deviceid, 'setLevel', {
-                            value1: value//,
+                            //value1: Math.round(value/factor),
+                            value1: value,
                             //value2: 1
                         }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
                     });
                 platform.addAttributeUsage('level', device.deviceid, thisCharacteristic);
-            }
         }
     }
     if (deviceHasAttributeCommand('hue', 'setHue'))
     {
+        that.deviceGroup = "lights";
         thisCharacteristic = that.getaddService(Service.Lightbulb).getCharacteristic(Characteristic.Hue)
                         .on('get', function(callback) {
                             callback(null, Math.round(that.device.attributes.hue * 3.6));
@@ -403,6 +559,7 @@ function HE_ST_Accessory(platform, group, device) {
     }   
     if (deviceHasAttributeCommand('saturation', 'setSaturation'))
     {
+        that.deviceGroup = "lights";
         thisCharacteristic = that.getaddService(Service.Lightbulb).getCharacteristic(Characteristic.Saturation)
                         .on('get', function(callback) {
                             callback(null, parseInt(that.device.attributes.saturation));
@@ -414,14 +571,15 @@ function HE_ST_Accessory(platform, group, device) {
                         });
         platform.addAttributeUsage('saturation', device.deviceid, thisCharacteristic);
     }
-    if (device.attributes.hasOwnProperty('motion'))
+    if (that.device.attributes.hasOwnProperty('motion'))
     {
+        that.deviceGroup = "motion";
         thisCharacteristic = that.getaddService(Service.MotionSensor).getCharacteristic(Characteristic.MotionDetected)
             .on('get', function(callback) {
                 callback(null, that.device.attributes.motion === 'active');
             });
         platform.addAttributeUsage('motion', device.deviceid, thisCharacteristic);
-        if (device.attributes.hasOwnProperty('tamper')) {
+        if (that.device.attributes.hasOwnProperty('tamper')) {
             thisCharacteristic = that.getaddService(Service.MotionSensor).getCharacteristic(Characteristic.StatusTampered)
                 .on('get', function(callback) {
                     callback(null, (that.device.attributes.tamper === 'detected') ? Characteristic.StatusTampered.TAMPERED : Characteristic.StatusTampered.NOT_TAMPERED);
@@ -429,14 +587,15 @@ function HE_ST_Accessory(platform, group, device) {
             platform.addAttributeUsage('tamper', device.deviceid, thisCharacteristic);
         }
     } 
-    if (device.attributes.hasOwnProperty('presence'))
+    if (that.device.attributes.hasOwnProperty('presence'))
     {
+        that.deviceGroup = "presence";
         thisCharacteristic = that.getaddService(Service.OccupancySensor).getCharacteristic(Characteristic.OccupancyDetected)
             .on('get', function(callback) {
                 callback(null, that.device.attributes.presence === 'present');
             });
         platform.addAttributeUsage('presence', device.deviceid, thisCharacteristic);
-        if (device.attributes.hasOwnProperty('tamper') ) {
+        if (that.device.attributes.hasOwnProperty('tamper') ) {
             thisCharacteristic = that.getaddService(Service.OccupancySensor).getCharacteristic(Characteristic.StatusTampered)
                 .on('get', function(callback) {
                     callback(null, (that.device.attributes.tamper === 'detected') ? Characteristic.StatusTampered.TAMPERED : Characteristic.StatusTampered.NOT_TAMPERED);
@@ -445,6 +604,7 @@ function HE_ST_Accessory(platform, group, device) {
         }
     }
     if (deviceHasAttributeCommand('lock', 'lock')) {
+        that.deviceGroup = "lock";
         thisCharacteristic = that.getaddService(Service.LockMechanism).getCharacteristic(Characteristic.LockCurrentState)
             .on('get', function(callback) {
                 switch (that.device.attributes.lock) {
@@ -488,7 +648,8 @@ function HE_ST_Accessory(platform, group, device) {
     }
 
 
-    if (device.attributes.hasOwnProperty('temperature') && !platform.isAttributeUsed('temperature', device.deviceid)) {
+    if (that.device.attributes.hasOwnProperty('temperature') && !platform.isAttributeUsed('temperature', device.deviceid)) {
+        that.deviceGroup = "sensor";
         if (that.device.attributes.temperature !== null)
         {
             thisCharacteristic = that.getaddService(Service.TemperatureSensor).getCharacteristic(Characteristic.CurrentTemperature)
@@ -500,7 +661,7 @@ function HE_ST_Accessory(platform, group, device) {
                     }
                 });
             platform.addAttributeUsage('temperature', device.deviceid, thisCharacteristic);
-            if (device.attributes.hasOwnProperty('tamper')) {                
+            if (that.device.attributes.hasOwnProperty('tamper')) {                
                 thisCharacteristic = that.getaddService(Service.TemperatureSensor).getCharacteristic(Characteristic.StatusTampered)
                     .on('get', function(callback) {
                         callback(null, (that.device.attributes.tamper === 'detected') ? Characteristic.StatusTampered.TAMPERED : Characteristic.StatusTampered.NOT_TAMPERED);
@@ -509,7 +670,8 @@ function HE_ST_Accessory(platform, group, device) {
             }
         }
     }
-    if (device.attributes.hasOwnProperty('contact')) {
+    if (that.device.attributes.hasOwnProperty('contact')) {
+        that.deviceGroup = "sensor";
         thisCharacteristic = that.getaddService(Service.ContactSensor).getCharacteristic(Characteristic.ContactSensorState)
             .on('get', function(callback) {
                 if (that.device.attributes.contact === 'closed') {
@@ -519,7 +681,7 @@ function HE_ST_Accessory(platform, group, device) {
             }
         });
         platform.addAttributeUsage('contact', device.deviceid, thisCharacteristic);
-        if (device.attributes.hasOwnProperty('tamper')) {
+        if (that.device.attributes.hasOwnProperty('tamper')) {
             thisCharacteristic = that.getaddService(Service.ContactSensor).getCharacteristic(Characteristic.StatusTampered)
                 .on('get', function(callback) {
                     callback(null, (that.device.attributes.tamper === 'detected') ? Characteristic.StatusTampered.TAMPERED : Characteristic.StatusTampered.NOT_TAMPERED);
@@ -527,7 +689,8 @@ function HE_ST_Accessory(platform, group, device) {
             platform.addAttributeUsage('tamper', device.deviceid, thisCharacteristic);
         }
     }
-    if (device.attributes.hasOwnProperty('door')) {
+    if (that.device.attributes.hasOwnProperty('door')) {
+        that.deviceGroup = "door";
         thisCharacteristic = that.getaddService(Service.GarageDoorOpener).getCharacteristic(Characteristic.TargetDoorState)
             .on('get', function(callback) {
                 if (that.device.attributes.door === 'closed' || that.device.attributes.door === 'closing') {
@@ -570,7 +733,8 @@ function HE_ST_Accessory(platform, group, device) {
         platform.addAttributeUsage('door', device.deviceid, thisCharacteristic);
         that.getaddService(Service.GarageDoorOpener).setCharacteristic(Characteristic.ObstructionDetected, false);
     }
-    if (device.attributes.hasOwnProperty('smoke')) {
+    if (that.device.attributes.hasOwnProperty('smoke')) {
+        that.deviceGroup = "sensor";
         thisCharacteristic = that.getaddService(Service.SmokeSensor).getCharacteristic(Characteristic.SmokeDetected)
             .on('get', function(callback) {
                 if (that.device.attributes.smoke === 'clear') {
@@ -580,7 +744,7 @@ function HE_ST_Accessory(platform, group, device) {
                 }
         });
         platform.addAttributeUsage('smoke', device.deviceid, thisCharacteristic);
-        if (device.attributes.hasOwnProperty('tamper')) {
+        if (that.device.attributes.hasOwnProperty('tamper')) {
             thisCharacteristic = that.getaddService(Service.SmokeSensor).getCharacteristic(Characteristic.StatusTampered)
                 .on('get', function(callback) {
                     callback(null, (that.device.attributes.tamper === 'detected') ? Characteristic.StatusTampered.TAMPERED : Characteristic.StatusTampered.NOT_TAMPERED);
@@ -588,7 +752,8 @@ function HE_ST_Accessory(platform, group, device) {
             platform.addAttributeUsage('tamper', device.deviceid, thisCharacteristic);
         }
     }
-    if (device.attributes.hasOwnProperty('carbonMonoxide')) {
+    if (that.device.attributes.hasOwnProperty('carbonMonoxide')) {
+        that.deviceGroup = "sensor";
         thisCharacteristic = that.getaddService(Service.CarbonMonoxideSensor).getCharacteristic(Characteristic.CarbonMonoxideDetected)
             .on('get', function(callback) {
                 if (that.device.attributes.carbonMonoxide === 'clear') {
@@ -598,7 +763,7 @@ function HE_ST_Accessory(platform, group, device) {
                 }
             });
         platform.addAttributeUsage('carbonMonoxide', device.deviceid, thisCharacteristic);
-        if (device.attributes.hasOwnProperty('tamper')) {
+        if (that.device.attributes.hasOwnProperty('tamper')) {
             thisCharacteristic = that.getaddService(Service.CarbonMonoxideSensor).getCharacteristic(Characteristic.StatusTampered)
                 .on('get', function(callback) {
                     callback(null, (that.device.attributes.tamper === 'detected') ? Characteristic.StatusTampered.TAMPERED : Characteristic.StatusTampered.NOT_TAMPERED);
@@ -606,7 +771,8 @@ function HE_ST_Accessory(platform, group, device) {
             platform.addAttributeUsage('tamper', device.deviceid, thisCharacteristic);
         }
     }
-    if (device.attributes.hasOwnProperty('carbonDioxideMeasurement')) {
+    if (that.device.attributes.hasOwnProperty('carbonDioxideMeasurement')) {
+        that.deviceGroup = "sensor";
         thisCharacteristic = that.getaddService(Service.CarbonDioxideSensor).getCharacteristic(Characteristic.CarbonDioxideDetected)
             .on('get', function(callback) {
                 if (that.device.attributes.carbonDioxideMeasurement < 2000) {
@@ -623,7 +789,7 @@ function HE_ST_Accessory(platform, group, device) {
                 }
             });
         platform.addAttributeUsage('carbonDioxideLevel', device.deviceid, thisCharacteristic);
-        if (device.attributes.hasOwnProperty('tamper') && !platform.isAttributeUsed('tamper', device.deviceid)) {
+        if (that.device.attributes.hasOwnProperty('tamper') && !platform.isAttributeUsed('tamper', device.deviceid)) {
             thisCharacteristic = that.getaddService(Service.CarbonDioxideSensor).getCharacteristic(Characteristic.StatusTampered)
                 .on('get', function(callback) {
                     callback(null, (that.device.attributes.tamper === 'detected') ? Characteristic.StatusTampered.TAMPERED : Characteristic.StatusTampered.NOT_TAMPERED);
@@ -631,7 +797,8 @@ function HE_ST_Accessory(platform, group, device) {
             platform.addAttributeUsage('tamper', device.deviceid, thisCharacteristic);
         }
     }
-    if (device.attributes.hasOwnProperty('water')) {
+    if (that.device.attributes.hasOwnProperty('water')) {
+        that.deviceGroup = "sensor";
         thisCharacteristic = that.getaddService(Service.LeakSensor).getCharacteristic(Characteristic.LeakDetected)
             .on('get', function(callback) {
                 var reply = Characteristic.LeakDetected.LEAK_DETECTED;
@@ -641,7 +808,7 @@ function HE_ST_Accessory(platform, group, device) {
                 callback(null, reply);
             });
         platform.addAttributeUsage('water', device.deviceid, thisCharacteristic);
-        if (device.attributes.hasOwnProperty('tamper') && !platform.isAttributeUsed('tamper', device.deviceid)) {
+        if (that.device.attributes.hasOwnProperty('tamper') && !platform.isAttributeUsed('tamper', device.deviceid)) {
             thisCharacteristic = that.getaddService(Service.LeakSensor).getCharacteristic(Characteristic.StatusTampered)
                 .on('get', function(callback) {
                     callback(null, (that.device.attributes.tamper === 'detected') ? Characteristic.StatusTampered.TAMPERED : Characteristic.StatusTampered.NOT_TAMPERED);
@@ -649,13 +816,14 @@ function HE_ST_Accessory(platform, group, device) {
             platform.addAttributeUsage('tamper', device.deviceid, thisCharacteristic);
         }
     }
-    if (device.attributes.hasOwnProperty('humidity') && !platform.isAttributeUsed('humidity', device.deviceid)) {
+    if (that.device.attributes.hasOwnProperty('humidity') && !platform.isAttributeUsed('humidity', device.deviceid)) {
+        that.deviceGroup = "sensor";
         thisCharacteristic = that.getaddService(Service.HumiditySensor).getCharacteristic(Characteristic.CurrentRelativeHumidity)
             .on('get', function(callback) {
                 callback(null, Math.round(that.device.attributes.humidity));
             });
         platform.addAttributeUsage('humidity', device.deviceid, thisCharacteristic);
-        if (device.attributes.hasOwnProperty('tamper') && !platform.isAttributeUsed('tamper', device.deviceid)) {
+        if (that.device.attributes.hasOwnProperty('tamper') && !platform.isAttributeUsed('tamper', device.deviceid)) {
             thisCharacteristic = that.getaddService(Service.HumiditySensor).getCharacteristic(Characteristic.StatusTampered)
                 .on('get', function(callback) {
                     callback(null, (that.device.attributes.tamper === 'detected') ? Characteristic.StatusTampered.TAMPERED : Characteristic.StatusTampered.NOT_TAMPERED);
@@ -663,15 +831,16 @@ function HE_ST_Accessory(platform, group, device) {
             platform.addAttributeUsage('tamper', device.deviceid, thisCharacteristic);
         }
     }
-    if (device.attributes.hasOwnProperty('illuminance')) {
-        // console.log(device);
+    if (that.device.attributes.hasOwnProperty('illuminance')) {
+        that.deviceGroup = "sensor";
         thisCharacteristic = that.getaddService(Service.LightSensor).getCharacteristic(Characteristic.CurrentAmbientLightLevel)
             .on('get', function(callback) {
                 callback(null, Math.ceil(that.device.attributes.illuminance));
             });
         platform.addAttributeUsage('illuminance', device.deviceid, thisCharacteristic);
     }
-    if (device.attributes.hasOwnProperty('battery')) {
+    if (that.device.attributes.hasOwnProperty('battery')) {
+        that.deviceGroup = "battery";
         thisCharacteristic = that.getaddService(Service.BatteryService).getCharacteristic(Characteristic.BatteryLevel)
             .on('get', function(callback) {
                 callback(null, Math.round(that.device.attributes.battery));
@@ -685,13 +854,14 @@ function HE_ST_Accessory(platform, group, device) {
         that.getaddService(Service.BatteryService).setCharacteristic(Characteristic.ChargingState, Characteristic.ChargingState.NOT_CHARGING);
         platform.addAttributeUsage('battery', device.deviceid, thisCharacteristic);
     }
-    if (device.attributes.hasOwnProperty('alarmSystemStatus')) {
+    if (that.device.attributes.hasOwnProperty('alarmSystemStatus')) {
+        that.deviceGroup = "alarm";
         thisCharacteristic = that.getaddService(Service.SecuritySystem).getCharacteristic(Characteristic.SecuritySystemCurrentState)
             .on('get', function(callback) {
                 // platform.log('alarm1: ' + device.attributes.alarmSystemStatus + ' | ' + convertAlarmState(device.attributes.alarmSystemStatus, true));
-                callback(null, convertAlarmState(that.device.attributes.alarmSystemStatus, true));
+                callback(null, convertAlarmState(that.device.attributes.alarmSystemCurrent, true));
             });
-        platform.addAttributeUsage('alarmSystemStatus', device.deviceid, thisCharacteristic);
+        platform.addAttributeUsage('alarmSystemCurrent', device.deviceid, thisCharacteristic);
 
         thisCharacteristic = that.getaddService(Service.SecuritySystem).getCharacteristic(Characteristic.SecuritySystemTargetState)
             .on('get', function(callback) {
@@ -699,13 +869,17 @@ function HE_ST_Accessory(platform, group, device) {
                 callback(null, convertAlarmState(that.device.attributes.alarmSystemStatus.toLowerCase(), true));
             })
             .on('set', function(value, callback) {
-                // platform.log('setAlarm: ' + value + ' | ' + convertAlarmState2(value));
-                platform.api.setAlarmState(convertAlarmState(value)).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                platform.log('setAlarm: ' + value + ' | ' + convertAlarmState(value));
+                platform.api.setAlarmState(convertAlarmState(value)).then(function(resp) {
+                    if (callback) 
+                        callback(null, value); 
+                }).catch(function(err) { if (callback) callback(err); });
                 that.device.attributes.alarmSystemStatus = convertAlarmState(value);
             });
         platform.addAttributeUsage('alarmSystemStatus', device.deviceid, thisCharacteristic);
     }
     if (deviceHasAttributeCommand('position', 'setPosition')) {
+        that.deviceGroup = "windowshade";
         thisCharacteristic = that.getaddService(Service.WindowCovering).getCharacteristic(Characteristic.TargetPosition)
             .on('get', function(callback) {
                 let curPos = parseInt(that.device.attributes.position);
@@ -738,26 +912,57 @@ function HE_ST_Accessory(platform, group, device) {
     }
     if (deviceHasAttributeCommand('speed', 'setSpeed'))
     {
-        let fanLvl = speedFanConversion(that.device.attributes.speed, false);
-        //platform.log("Fan with " + that.device.attributes.speed + ' value: ' + fanLvl);
+        that.deviceGroup = "fan";
+        thisCharacteristic = that.getaddService(Service.Fanv2).getCharacteristic(Characteristic.Active)
+            .on('get', function(callback) {
+                var fanLvl = 0;
+                fanLvl = speedFanConversion(that.device.attributes.speed, false);
+                callback(null, fanLvl>0);
+            })
+            .on('set', function(value,callback) {
+                if (value === 0)
+                    platform.api.runCommand(device.deviceid, "setSpeed", {
+                        value1: "off"
+                    }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                else
+                {
+                    var fanLvl = speedFanConversion(that.device.attributes.speed, false);
+                    var fanValue = that.device.attributes.speed;
+                    if (fanLvl === 0)
+                        fanValue = "high";
+                    platform.api.runCommand(device.deviceid, "setSpeed", {
+                        value1: fanValue
+                    }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                }
+            });
+        platform.addAttributeUsage('speed', device.deviceid, thisCharacteristic);
+
         thisCharacteristic = that.getaddService(Service.Fanv2).getCharacteristic(Characteristic.RotationSpeed)
             .on('get', function(callback) {
+                var fanLvl = 0;
+                fanLvl = speedFanConversion(that.device.attributes.speed, false);
                 callback(null, fanLvl);
             })
             .on('set', function(value, callback) {
             if (value > 0) {
                 let cmdStr = 'setSpeed';
                 let cmdVal = fanSpeedConversion(value, false);
-                //platform.log("Fan Command (Str: " + cmdStr + ') | value: (' + cmdVal + ')');
                 platform.api.runCommand(device.deviceid, cmdStr, {
                     value1: cmdVal
                 }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
             }
+            else {
+                platform.api.runCommand(device.deviceid, "setSpeed", { 
+                    value1: "off" 
+                }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+            }
+                
         });
         platform.addAttributeUsage('speed', device.deviceid, thisCharacteristic);
     }
-    if (device.attributes.hasOwnProperty('valve')) 
+    if (that.device.attributes.hasOwnProperty('valve')) 
     {
+        deviceGroup = "valve";
         let valveType = 0;
 
         //Gets the inUse Characteristic
@@ -931,9 +1136,9 @@ function HE_ST_Accessory(platform, group, device) {
                 })
                 .on('set', function(value, callback) {
                     if (value && that.device.attributes.switch === 'off') {
-                        platform.api.runCommand(device.deviceid, 'button').then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                        platform.api.runCommand(device.deviceid, 'button');
                     }
-                });
+                }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
             platform.addAttributeUsage('switch', device.deviceid, thisCharacteristic);
         }
 
@@ -1042,18 +1247,22 @@ function HE_ST_Accessory(platform, group, device) {
         }
     }
 */
-    this.loadData(device, that);
+    //this.loadData(device, that);
+    //if ((accessory !== null) && (accessory !==undefined))
+    //    removeExculdedAttributes();
 }
 
-function speedFanConversion(speedVal, has4Spd = false) {
+function speedFanConversion(speedVal, has4Spd = true) {
     if (has4Spd) {
         switch (speedVal) {
             case "low":
-                return 24;
-            case "med":
-                return 49;
-            case "medhigh":
-                return 74;
+                return 20;
+            case "medium-low":
+                return 40;
+            case "medium":
+                return 60;
+            case "medium-high":
+                return 80;
             case "high":
                 return 100;
             default:
@@ -1074,18 +1283,20 @@ function speedFanConversion(speedVal, has4Spd = false) {
     }
     return speedVal;
 }
-function fanSpeedConversion(speedVal, has4Spd = false) {
+function fanSpeedConversion(speedVal, has4Spd = true) {
     if (speedVal <= 0) {
         return "off";
     }
     if (has4Spd) {
-        if (speedVal > 0 && speedVal <= 25) {
+        if (speedVal > 0 && speedVal <= 20) {
             return "low";
-        } else if (speedVal > 25 && speedVal <= 50) {
-            return "med";
-        } else if (speedVal > 50 && speedVal <= 75) {
-            return "medhigh";
-        } else if (speedVal > 75 && speedVal <= 100) {
+        } else if (speedVal > 20 && speedVal <= 40) {
+            return "medium-low";
+        } else if (speedVal > 40 && speedVal <= 60) {
+            return "medium";
+        } else if (speedVal > 60 && speedVal <= 80) {
+            return "medium-high";
+        } else if (speedVal > 80 && speedVal <= 100) {
             return "high";
         }
     } else {
@@ -1141,9 +1352,9 @@ function loadData(data, myObject) {
     }
     if (data !== undefined) {
         this.device = data;
-        for (var i = 0; i < that.services.length; i++) {
-            for (var j = 0; j < that.services[i].characteristics.length; j++) {
-                that.services[i].characteristics[j].getValue();
+        for (var i = 0; i < that.accessory.services.length; i++) {
+            for (var j = 0; j < that.accessory.services[i].characteristics.length; j++) {
+                that.accessory.services[i].characteristics[j].getValue();
             }
         }
     } else {
@@ -1153,9 +1364,9 @@ function loadData(data, myObject) {
                 return;
             }
             this.device = data;
-            for (var i = 0; i < that.services.length; i++) {
-                for (var j = 0; j < that.services[i].characteristics.length; j++) {
-                    that.services[i].characteristics[j].getValue();
+            for (var i = 0; i < that.accessory.services.length; i++) {
+                for (var j = 0; j < that.accessory.services[i].characteristics.length; j++) {
+                    that.accessory.services[i].characteristics[j].getValue();
                 }
             }
         });
@@ -1163,5 +1374,6 @@ function loadData(data, myObject) {
 }
 
 function getServices() {
-    return this.services;
+    return this.accessory.services;
 }
+
