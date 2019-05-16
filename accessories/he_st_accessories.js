@@ -2,6 +2,7 @@ var inherits = require('util').inherits;
 var Accessory, Service, Characteristic, uuid, CommunityTypes, platformName, capabilityToAttributeMap;
 const util = require('util');
 var version = require('../package.json').version;
+const pluginName = 'homebridge-hubitat-hubconnect';
 
 /*
  *   HE_ST Accessory
@@ -117,6 +118,8 @@ function HE_ST_Accessory(platform, group, device, accessory) {
     //Removing excluded attributes from config
     function removeExculdedAttributes() {
         //that.platform.log('Having a cached accessory, build a duplicate and see if I can detect obsolete characteristics');
+        var _device = device.deviceid;
+        device.deviceid = 'filter'+_device.deviceid;
         var newAccessory = new HE_ST_Accessory(platform, group, device);
         //console.log('accessory', that.accessory.services);
         //console.log('newAccessory', newAccessory.accessory.services);
@@ -155,6 +158,7 @@ function HE_ST_Accessory(platform, group, device, accessory) {
         }
         //console.log('accessory', that.accessory.services);
         //console.log('newAccessory', newAccessory.accessory.services);
+        device.deviceid = _device;
         return;
     }
 
@@ -185,7 +189,6 @@ function HE_ST_Accessory(platform, group, device, accessory) {
     };
     that.deviceGroup = 'unknown'; // that way we can easily tell if we set a device group
     var thisCharacteristic;
-    that.accessory.updateReachability(true);
     //platform.log('loading device: ' + JSON.stringify(device));
 
     if (group === "mode") {
@@ -285,11 +288,13 @@ function HE_ST_Accessory(platform, group, device, accessory) {
             }
             thisCharacteristic = that.getaddService(Service.Thermostat).getCharacteristic(Characteristic.CurrentTemperature)
                 .on('get', function(callback) {
+                    let temp = 0;
                     if (platform.temperature_unit === 'C') {
-                        callback(null, Math.round(that.device.attributes.temperature * 10) / 10);
+                        temp = Math.round(that.device.attributes.temperature * 10) / 10;
                     } else {
-                        callback(null, Math.round((that.device.attributes.temperature - 32) / 1.8 * 10) / 10);
+                        temp = Math.round((that.device.attributes.temperature - 32) / 1.8 * 10) / 10;
                     }
+                    callback(null, temp);
                 });
             platform.addAttributeUsage('temperature', device.deviceid, thisCharacteristic);
             thisCharacteristic = that.getaddService(Service.Thermostat).getCharacteristic(Characteristic.TargetTemperature)
@@ -653,12 +658,18 @@ function HE_ST_Accessory(platform, group, device, accessory) {
         if (that.device.attributes.temperature !== null)
         {
             thisCharacteristic = that.getaddService(Service.TemperatureSensor).getCharacteristic(Characteristic.CurrentTemperature)
+                .setProps({
+                    minValue: -100,
+                    maxValue: 200
+                })
                 .on('get', function(callback) {
+                    let temp = 0;
                     if (platform.temperature_unit === 'C') {
-                        callback(null, Math.round(that.device.attributes.temperature * 10) / 10);
+                        temp = Math.round(that.device.attributes.temperature * 10) / 10;
                     } else {
-                        callback(null, Math.round((that.device.attributes.temperature - 32) / 1.8 * 10) / 10);
+                        temp = Math.round((that.device.attributes.temperature - 32) / 1.8 * 10) / 10;
                     }
+                    callback(null, temp);
                 });
             platform.addAttributeUsage('temperature', device.deviceid, thisCharacteristic);
             if (that.device.attributes.hasOwnProperty('tamper')) {                
@@ -916,7 +927,7 @@ function HE_ST_Accessory(platform, group, device, accessory) {
         thisCharacteristic = that.getaddService(Service.Fanv2).getCharacteristic(Characteristic.Active)
             .on('get', function(callback) {
                 var fanLvl = 0;
-                fanLvl = speedFanConversion(that.device.attributes.speed, false);
+                fanLvl = speedFanConversion(that.device.attributes.speed);
                 callback(null, fanLvl>0);
             })
             .on('set', function(value,callback) {
@@ -926,7 +937,7 @@ function HE_ST_Accessory(platform, group, device, accessory) {
                     }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
                 else
                 {
-                    var fanLvl = speedFanConversion(that.device.attributes.speed, false);
+                    var fanLvl = speedFanConversion(that.device.attributes.speed);
                     var fanValue = that.device.attributes.speed;
                     if (fanLvl === 0)
                         fanValue = "high";
@@ -940,13 +951,13 @@ function HE_ST_Accessory(platform, group, device, accessory) {
         thisCharacteristic = that.getaddService(Service.Fanv2).getCharacteristic(Characteristic.RotationSpeed)
             .on('get', function(callback) {
                 var fanLvl = 0;
-                fanLvl = speedFanConversion(that.device.attributes.speed, false);
+                fanLvl = speedFanConversion(that.device.attributes.speed);
                 callback(null, fanLvl);
             })
             .on('set', function(value, callback) {
             if (value > 0) {
                 let cmdStr = 'setSpeed';
-                let cmdVal = fanSpeedConversion(value, false);
+                let cmdVal = fanSpeedConversion(value);
                 platform.api.runCommand(device.deviceid, cmdStr, {
                     value1: cmdVal
                 }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
@@ -1252,61 +1263,36 @@ function HE_ST_Accessory(platform, group, device, accessory) {
     //    removeExculdedAttributes();
 }
 
-function speedFanConversion(speedVal, has4Spd = true) {
-    if (has4Spd) {
-        switch (speedVal) {
-            case "low":
-                return 20;
-            case "medium-low":
-                return 40;
-            case "medium":
-                return 60;
-            case "medium-high":
-                return 80;
-            case "high":
-                return 100;
-            default:
-                return 0;
+function speedFanConversion(speedVal) {
+    switch (speedVal) {
+        case "low":
+            return 20;
+        case "medium-low":
+            return 40;
+        case "medium":
+            return 60;
+        case "medium-high":
+            return 80;
+        case "high":
+            return 100;
+        default:
+            return 0;
         }
-    }
-    else {
-        switch(speedVal) {
-            case "low":
-                return 32;
-            case "medium":
-                return 65;
-            case "high":
-                return 100;
-            default:
-                return 0;
-        }
-    }
     return speedVal;
 }
-function fanSpeedConversion(speedVal, has4Spd = true) {
+function fanSpeedConversion(speedVal) {
     if (speedVal <= 0) {
         return "off";
-    }
-    if (has4Spd) {
-        if (speedVal > 0 && speedVal <= 20) {
-            return "low";
-        } else if (speedVal > 20 && speedVal <= 40) {
-            return "medium-low";
-        } else if (speedVal > 40 && speedVal <= 60) {
-            return "medium";
-        } else if (speedVal > 60 && speedVal <= 80) {
-            return "medium-high";
-        } else if (speedVal > 80 && speedVal <= 100) {
-            return "high";
-        }
-    } else {
-        if (speedVal > 0 && speedVal <= 33) {
-            return "low";
-        } else if (speedVal > 33 && speedVal <= 66) {
-            return "medium";
-        } else if (speedVal > 66 && speedVal <= 99) {
-            return "high";
-        }
+    } else if (speedVal > 0 && speedVal <= 20) {
+        return "low";
+    } else if (speedVal > 20 && speedVal <= 40) {
+        return "medium-low";
+    } else if (speedVal > 40 && speedVal <= 60) {
+        return "medium";
+    } else if (speedVal > 60 && speedVal <= 80) {
+        return "medium-high";
+    } else if (speedVal > 80 && speedVal <= 100) {
+        return "high";
     }
     return speedVal;
 }
@@ -1376,4 +1362,5 @@ function loadData(data, myObject) {
 function getServices() {
     return this.accessory.services;
 }
+
 

@@ -20,7 +20,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 <br>configure homebridge to use Celsius
 <br>
 ***v0.1.5*** - Fixed issue when a single device is assigned to several groups <br>
-***v0.2.0*** - migrated to dynamic homebridge platform that removes the need of restarting homebridge after a device selection was changed in HubConnect, configure homebridge to use Celsius, fixed fan tile on/off functionallity, ability to create switch tiles for modes and switching of modes, HSM integration, perform daily version check against NPMJS and print logging statement on newer versions available, streamline code to share improvements with homebridge-hubitat-makerapi, ability to exclude attributes<br>
+***v0.2.0*** - migrated to dynamic homebridge platform that removes the need of restarting homebridge after a device selection was changed in HubConnect, configure homebridge to use Celsius, fixed fan tile on/off functionallity, ability to create switch tiles for modes and switching of modes, HSM integration, perform daily version check against NPMJS and print logging statement on newer versions available, streamline code to share improvements with homebridge-hubitat-makerapi, ability to exclude attributes,allows correct usage of DNS host names instead of IP address to connect to hubitat, fans that support setLevel use setLevel instead of setSpeed to allow finer granularity, code baselined with homebridge-hubitat-makerapi plugin to allow faster cross-sharing of improvements,Fixed issue with multi sensors not updating temperature and humidity, fixed issue that temperature can't go negative<br>
 
 # Explanation:
 
@@ -141,3 +141,4 @@ To do so, you would add the following configuration to your config.json:
    <span style="color: #f8f8f2">    ]</span>
    <span style="color: #f8f8f2">}</span>
 </pre></div>
+

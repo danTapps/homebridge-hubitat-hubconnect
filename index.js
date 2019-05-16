@@ -1,6 +1,13 @@
 const pluginName = 'homebridge-hubitat-hubconnect';
 const platformName = 'Hubitat-HubConnect';
-var he_st_api = require('./lib/he_hubconnect_api').api;
+
+if (pluginName === 'homebridge-hubitat-makerapi') {
+    var he_st_api = require('./lib/api-homebridge-hubitat-makerapi.js').api;
+} else {
+    var he_st_api = require('./lib/api-homebridge-hubitat-hubconnect.js').api;
+}
+const ignoreTheseAttributes = require('./lib/ignore-attributes.js').ignoreTheseAttributes;
+
 var InternalError = require('./lib/InternalError').InternalError;
 var Service,
     Characteristic,
@@ -17,7 +24,7 @@ var Logger = require('./lib/Logger.js').Logger;
 
 module.exports = function(homebridge) {
     console.log("Homebridge Version: " + homebridge.version);
-    console.log("Plugin Version: hhm:" + npm_version);
+    console.log("Plugin Version: " + npm_version);
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
     Accessory = homebridge.hap.Accessory;
@@ -28,11 +35,6 @@ module.exports = function(homebridge) {
     homebridge.registerPlatform(pluginName, platformName, HE_ST_Platform, true);
 };
 const npm_version = require('./package.json').version;
-
-    process.on('unhandledRejection', (reason, p) => {
-  console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
-  // application specific logging, throwing an error, or other logic here
-});
 function HE_ST_Platform(log, config, api) {
     if ((config === null) || (config === undefined))
     {
@@ -74,7 +76,10 @@ function HE_ST_Platform(log, config, api) {
     // This is how often it polls for subscription data.
     this.config = config;
     this.api = he_st_api;
-    this.log = Logger.withPrefix( this.config['name']+ ' hhm:' + npm_version);
+    if (pluginName === 'homebridge-hubitat-makerapi')
+        this.log = Logger.withPrefix( this.config['name']+ ' hhm:' + npm_version);
+    else
+        this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + npm_version);
     this.deviceLookup = {};
     this.firstpoll = true;
     this.attributeLookup = {};
@@ -83,7 +88,10 @@ function HE_ST_Platform(log, config, api) {
     this.versionCheck = require('./lib/npm_version_check')(pluginName,npm_version,this.log,null);
     this.doVersionCheck();
     he_st_api.init(this.hubconnect_key, this);
-    this.receiver = require('./lib/receiver_hubconnect.js').receiver;
+    if (pluginName === 'homebridge-hubitat-makerapi')
+        this.receiver = require('./lib/receiver-homebridge-hubitat-makerapi.js').receiver;
+    else
+        this.receiver = require('./lib/receiver-homebridge-hubitat-hubconnect.js').receiver;
     this.hb_api.on('didFinishLaunching', this.didFinishLaunching.bind(this));
     this.asyncCallWait = 0;
 }
@@ -116,7 +124,6 @@ HE_ST_Platform.prototype = {
                 if (that.deviceLookup[uuidGen(deviceid)] instanceof HE_ST_Accessory)
                 {
                     accessory = that.deviceLookup[uuidGen(deviceid)];
-                    that.deviceLookup[uuidGen(deviceid)].accessory.updateReachability(true);
                     //accessory.loadData(devices[i]);
                     resolve(accessory);
                 }
@@ -216,7 +223,7 @@ HE_ST_Platform.prototype = {
             {
                 that.hb_api.unregisterPlatformAccessories(pluginName, platformName, [accessory.accessory]);
                 if (that.deviceLookup[accessory.accessory.UUID]) {
-                    that.log("Device Removed - Name " + that.deviceLookup[accessory.accessory.UUID].name + ', ID ' + that.deviceLookup[accessory.accessory.UUID].deviceid);
+                    that.log.warn("Device Removed - Name " + that.deviceLookup[accessory.accessory.UUID].name + ', ID ' + that.deviceLookup[accessory.accessory.UUID].deviceid);
                     that.removeDeviceAttributeUsage(that.deviceLookup[accessory.accessory.UUID].deviceid);
                     if (that.deviceLookup.hasOwnProperty(accessory.accessory.UUID))
                         delete that.deviceLookup[accessory.accessory.UUID];
@@ -224,7 +231,7 @@ HE_ST_Platform.prototype = {
             }
             else
             {   
-                that.log("Remove stale cache device " + that.deviceLookup[accessory.UUID].displayName);
+                that.log.warn("Remove stale cache device " + that.deviceLookup[accessory.UUID].displayName);
                 that.hb_api.unregisterPlatformAccessories(pluginName, platformName, [that.deviceLookup[accessory.UUID]]);
                 delete that.deviceLookup[accessory.UUID];
             }
@@ -399,14 +406,11 @@ HE_ST_Platform.prototype = {
                 that.log.error('Received an error trying to get the device summary information from Hubitat.', error);
             }
             that.log.error('I am stopping my reload here and hope eveything fixes themselves (e.g. a firmware update of HE is rebooting the hub');
-            for (var key in that.deviceLookup)
-            {
-                if (that.deviceLookup[key] instanceof HE_ST_Accessory)
-                    that.deviceLookup[key].accessory.updateReachability(false);
-            }
         });
     },
     configureAccessory: function (accessory) {
+        var done = false;
+
         if (this.disabled === true)
             return;
         var that = this;
@@ -416,6 +420,7 @@ HE_ST_Platform.prototype = {
             if (deviceIdentifier[0] === 'device') {
                 that.addUpdateAccessory(deviceIdentifier[1], deviceIdentifier[0], accessory).then(function() {
                     that.asyncCallWait--;
+                    done = true;
                 }).catch(function(error) {
                     if (error.errorCode === InternalError.Codes.API_NOT_AVAILABLE)
                     {
@@ -429,12 +434,14 @@ HE_ST_Platform.prototype = {
                         process.exit(1);
                     }
                     that.asyncCallWait--;
+                    done = true;
                 });
             } else if (deviceIdentifier[0] === 'mode') {
                 if (that.enable_modes === false) {
                     that.log.warn('Device Mode - Name ' + accessory.name + ', ID ' + deviceIdentifier[1] + ' - marked for removal from cache');
                     that.deviceLookup[accessory.UUID] = accessory;
                     that.asyncCallWait--;
+                    done = true;
                 } else {
                 he_st_api.getModes().then(function(modes) {
                     var mode = {};
@@ -443,6 +450,7 @@ HE_ST_Platform.prototype = {
                         that.log.warn('Modes not available, old HE firmware? removing mode tiles');
                         that.deviceLookup[accessory.UUID] = accessory;
                         that.asyncCallWait--;
+                        done = true;
                         return;
                     }
                     for (var key in modes) {
@@ -463,6 +471,7 @@ HE_ST_Platform.prototype = {
                     if (mode.deviceid) {
                         that.addUpdateAccessory(deviceIdentifier[1], deviceIdentifier[0], accessory, mode).then(function() {
                             that.asyncCallWait--;
+                            done = true;
                         }).catch(function(error) {
                             if (error.errorCode === InternalError.Codes.API_NOT_AVAILABLE)
                             {
@@ -476,18 +485,21 @@ HE_ST_Platform.prototype = {
                                 process.exit(1);
                             }
                             that.asyncCallWait--;
+                            done = true;
                         });
                     }
                     else {
                         that.log.warn('Device Mode - Name ' + accessory.name + ', ID ' + deviceIdentifier[1] + ' - marked for removal from cache');
                         that.deviceLookup[accessory.UUID] = accessory;
                         that.asyncCallWait--;
+                        done = true;
                     }
                 }).catch(function(error) {
                         that.log(error);
                         that.log.error('Going to exit here to not destroy your room assignments.');
                         process.exit(1);
                     that.asyncCallWait--;
+                    done = true;
                 });
                 }
             } else if (deviceIdentifier[0] === 'reboot') {
@@ -502,6 +514,7 @@ HE_ST_Platform.prototype = {
                 rebootDevice.commands = {};
                 that.addUpdateAccessory(deviceIdentifier[1], deviceIdentifier[0], accessory, rebootDevice).then(function() {
                     that.asyncCallWait--;
+                    done = true;
                 }).catch(function(error) {
                     if (error.errorCode === InternalError.Codes.API_NOT_AVAILABLE)
                     {
@@ -515,6 +528,7 @@ HE_ST_Platform.prototype = {
                         process.exit(1);
                     }
                     that.asyncCallWait--;
+                    done = true;
                 });
             } else if (deviceIdentifier[0] === 'alarmSystem') {
                 var alarmSystem = {};
@@ -525,6 +539,7 @@ HE_ST_Platform.prototype = {
                             that.log.warn('HSM not configured, removing tile');
                             that.deviceLookup[accessory.UUID] = accessory;
                             that.asyncCallWait--;
+                            done = true;
                             return;
                         }
                         alarmSystem.deviceid = 'hsm' + that.config['name'];
@@ -539,6 +554,7 @@ HE_ST_Platform.prototype = {
                         alarmSystem.excludedCapabilities = ["None"];
                         that.addUpdateAccessory(deviceIdentifier[1], deviceIdentifier[0], accessory, alarmSystem).then(function() {
                             that.asyncCallWait--;
+                            done = true;
                         }).catch(function(error) {
                             that.log(error);
                             that.log.error('Going to exit here to not destroy your room assignments.');
@@ -550,18 +566,22 @@ HE_ST_Platform.prototype = {
                     that.log.warn('Device Skipped - Name ' + accessory.name + ', ID ' + deviceIdentifier[1] + ' - marked for removal from cache');
                     that.deviceLookup[accessory.UUID] = accessory;
                     that.asyncCallWait--;
+                    done = true;
                 }
                      
             } else {
                 this.log.warn("Invalid Device Indentifier Type (" + deviceIdentifier[0] + ") stored in cache, remove device", accessory.getService(Service.AccessoryInformation).getCharacteristic(Characteristic.Name).value);
                 this.deviceLookup[accessory.UUID] = accessory;
                 that.asyncCallWait--;
+                done = true;
             }
         }
         else {
             this.log.warn("Invalid Device Indentifier stored in cache, remove device" + accessory.getService(Service.AccessoryInformation).getCharacteristic(Characteristic.Name).value);
             this.deviceLookup[accessory.UUID] = accessory;
+            done = true;
         }
+        //require('deasync').loopWhile(function(){return !done;});
     },
     accessories: function(callback) {
         var that = this;
@@ -621,4 +641,5 @@ HE_ST_Platform.prototype = {
         }
     }
 };
+
 
