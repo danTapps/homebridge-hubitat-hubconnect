@@ -190,11 +190,17 @@ HE_ST_Platform.prototype = {
             }
         });
     },
-    didFinishLaunching: function() {
+    _didFinishLaunching: function() {
+        this.didFinishLaunching('me');
+    },
+    didFinishLaunching: function(caller) {
         var that = this;
+        if (this.disabled === true)
+            return;
+        //this.log.error('didFinishLaunching', (caller ? caller : 'homebridge'));
         if (that.asyncCallWait !== 0) {
             that.log("Configuration of cached accessories not done, wait for a bit...", that.asyncCallWait);
-            setTimeout(that.didFinishLaunching.bind(that), 1000);
+            setTimeout(that._didFinishLaunching.bind(that), 1000);
             return;
         }
         this.log('Fetching ' + platformName + ' devices. This can take a while depending on the number of devices are configured!');
