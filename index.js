@@ -8,7 +8,7 @@ if (pluginName === 'homebridge-hubitat-makerapi') {
 }
 const ignoreTheseAttributes = require('./lib/ignore-attributes.js').ignoreTheseAttributes;
 
-var InternalError = require('./lib/InternalError').InternalError;
+const InternalError = require('./lib/InternalError').InternalError;
 var Service,
     Characteristic,
     Accessory,
@@ -18,9 +18,10 @@ var Service,
     PlatformAccessory;
 const util = require('util');
 const URL = require('url');
+const os = require('os');
 const uuidGen = require('./accessories/he_st_accessories').uuidGen;
 const uuidDecrypt = require('./accessories/he_st_accessories').uuidDecrypt;
-var Logger = require('./lib/Logger.js').Logger;
+const Logger = require('./lib/Logger.js').Logger;
 
 module.exports = function(homebridge) {
     console.log("Homebridge Version: " + homebridge.version);
@@ -42,7 +43,12 @@ function HE_ST_Platform(log, config, api) {
         log('Plugin not configured in config.json, disabled plugin');
         return null;
     }
-    
+
+    this.config = config; 
+    if (pluginName === 'homebridge-hubitat-makerapi')
+        this.log = Logger.withPrefix( this.config['name']+ ' hhm:' + npm_version);
+    else
+        this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + npm_version);
 
     this.temperature_unit = config['temperature_unit'];
     if (this.temperature_unit === null || this.temperature_unit === undefined || (this.temperature_unit !== 'F' && this.temperature_unit !== 'C'))
@@ -55,7 +61,8 @@ function HE_ST_Platform(log, config, api) {
 
     this.local_ip = config['local_ip'];
     if (this.local_ip === undefined || this.local_ip === '') {
-        this.local_ip = '0.0.0.0';
+        this.local_ip = getIPAddress();
+        this.log.good('Setting "local_ip" not set in config, tried to determine it and found ' + this.local_ip + " -> I hope this is correct");    
     }    
     this.app_url = config['app_url'];
     this.app_id = config['app_id'];
@@ -74,12 +81,7 @@ function HE_ST_Platform(log, config, api) {
     this.add_reboot_switch = config['add_reboot_switch'] || false;
 
     // This is how often it polls for subscription data.
-    this.config = config;
     this.api = he_st_api;
-    if (pluginName === 'homebridge-hubitat-makerapi')
-        this.log = Logger.withPrefix( this.config['name']+ ' hhm:' + npm_version);
-    else
-        this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + npm_version);
     this.deviceLookup = {};
     this.firstpoll = true;
     this.attributeLookup = {};
@@ -164,8 +166,10 @@ HE_ST_Platform.prototype = {
                                 else if (error.statusCode === 500)
                                     internalError = new InternalError(InternalError.Codes.API_DISABLED, '', error);
                             }
-                            if (internalError === undefined)
+                            if (internalError === undefined) {
+                                platform.log.error(error);
                                 internalError = new InternalError(InternalError.Codes.RANDOM, '', error);
+                            }
                             reject(internalError);
                         });
                 }
@@ -648,4 +652,16 @@ HE_ST_Platform.prototype = {
     }
 };
 
-
+function getIPAddress() {
+    var interfaces = os.networkInterfaces();
+    for (var devName in interfaces) {
+        var iface = interfaces[devName];
+        for (var i = 0; i < iface.length; i++) {
+            var alias = iface[i];
+            if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) {
+                return alias.address;
+            }
+        }
+    }
+    return '0.0.0.0';
+}
