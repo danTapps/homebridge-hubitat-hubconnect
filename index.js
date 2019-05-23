@@ -167,7 +167,7 @@ HE_ST_Platform.prototype = {
                                     internalError = new InternalError(InternalError.Codes.API_DISABLED, '', error);
                             }
                             if (internalError === undefined) {
-                                platform.log.error(error);
+                                that.log.error(error);
                                 internalError = new InternalError(InternalError.Codes.RANDOM, '', error);
                             }
                             reject(internalError);
