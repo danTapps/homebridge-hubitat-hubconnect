@@ -49,7 +49,7 @@ function HE_ST_Platform(log, config, api) {
         this.log = Logger.withPrefix( this.config['name']+ ' hhm:' + npm_version);
     else
         this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + npm_version);
-
+    this.platformName = platformName;
     this.temperature_unit = config['temperature_unit'];
     if (this.temperature_unit === null || this.temperature_unit === undefined || (this.temperature_unit !== 'F' && this.temperature_unit !== 'C'))
         this.temperature_unit = 'F'; 
@@ -665,3 +665,4 @@ function getIPAddress() {
     }
     return '0.0.0.0';
 }
+
