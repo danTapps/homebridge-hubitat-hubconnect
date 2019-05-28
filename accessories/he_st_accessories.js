@@ -498,14 +498,14 @@ function HE_ST_Accessory(platform, group, device, accessory) {
         }
         else
         {
-            if ((deviceIsFan() === true) && (deviceHasAttributeCommand('speed', 'setSpeed') === true))
-            {
-                delete that.device.attributes['speed'];
-            }
                 var serviceType = Service.Lightbulb;
                 var characteristicType = Characteristic.Brightness;
                 var factor = 1;
                 if (deviceIsFan()) {
+                    if (deviceHasAttributeCommand('speed', 'setSpeed') === true)
+                    {
+                        delete that.device.attributes['speed'];
+                    }
                     serviceType = Service.Fanv2;
                     characteristicType = Characteristic.RotationSpeed;
                     factor = 2.55;
@@ -524,7 +524,7 @@ function HE_ST_Accessory(platform, group, device, accessory) {
                                 var fanValue = that.device.attributes.level;
                                 if (fanValue === 0)
                                     fanValue = "100";
-                                platform.api.runCommand(device.deviceid, "setSpeed", {
+                                platform.api.runCommand(device.deviceid, "setLevel", {
                                     value1: fanValue
                                 }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
                             }
@@ -538,7 +538,7 @@ function HE_ST_Accessory(platform, group, device, accessory) {
                         callback(null, that.device.attributes.level);
                     })
                     .on('set', function(value, callback) {
-                        that.platform.log('set value'+value+' factor:'+factor+' math:'+Math.round(value/factor));
+                        //that.platform.log('set value'+value+' factor:'+factor+' math:'+Math.round(value/factor));
                         platform.api.runCommand(device.deviceid, 'setLevel', {
                             //value1: Math.round(value/factor),
                             value1: value,
@@ -1361,5 +1361,6 @@ function loadData(data, myObject) {
 function getServices() {
     return this.accessory.services;
 }
+
 
 
