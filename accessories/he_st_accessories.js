@@ -973,22 +973,21 @@ function HE_ST_Accessory(platform, group, device, accessory) {
     }
     if (that.device.attributes.hasOwnProperty('valve')) 
     {
-        deviceGroup = "valve";
+        that.deviceGroup = "valve";
         let valveType = 0;
-
         //Gets the inUse Characteristic
         thisCharacteristic = that.getaddService(Service.Valve).getCharacteristic(Characteristic.InUse)
             .on('get', function(callback) {
                 callback(null, that.device.attributes.valve === 'open' ? Characteristic.InUse.IN_USE : Characteristic.InUse.NOT_IN_USE);
             });
-        platform.addAttributeUsage('inUse', device.deviceid, thisCharacteristic);
+        platform.addAttributeUsage('valve', device.deviceid, thisCharacteristic);
 
         //Defines the valve type (irrigation or generic)
         thisCharacteristic = that.getaddService(Service.Valve).getCharacteristic(Characteristic.ValveType)
             .on('get', function(callback) {
                 callback(null, valveType);
             });
-        platform.addAttributeUsage('valveType', device.deviceid, thisCharacteristic);
+        platform.addAttributeUsage('valve', device.deviceid, thisCharacteristic);
 
         //Defines Valve State (opened/closed)
         thisCharacteristic = that.getaddService(Service.Valve).getCharacteristic(Characteristic.Active)
@@ -998,9 +997,9 @@ function HE_ST_Accessory(platform, group, device, accessory) {
             .on('set', function(value, callback) {
                 // if (device.attributes.inStandby !== 'true') {
                 if (value) {
-                    platform.api.runCommand(device.deviceid, 'on').then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                    platform.api.runCommand(device.deviceid, 'open').then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
                 } else {
-                    platform.api.runCommand(device.deviceid, 'off').then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
+                    platform.api.runCommand(device.deviceid, 'close').then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
                 }
                 // }
             });
