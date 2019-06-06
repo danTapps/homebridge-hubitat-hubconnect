@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.2.0```**
+**```Current App version: 0.2.6```**
 
 <br>
 
@@ -23,6 +23,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.2.0*** - migrated to dynamic homebridge platform that removes the need of restarting homebridge after a device selection was changed in HubConnect, configure homebridge to use Celsius, fixed fan tile on/off functionallity, ability to create switch tiles for modes and switching of modes, HSM integration, perform daily version check against NPMJS and print logging statement on newer versions available, streamline code to share improvements with homebridge-hubitat-makerapi, ability to exclude attributes,allows correct usage of DNS host names instead of IP address to connect to hubitat, fans that support setLevel use setLevel instead of setSpeed to allow finer granularity, code baselined with homebridge-hubitat-makerapi plugin to allow faster cross-sharing of improvements,Fixed issue with multi sensors not updating temperature and humidity, fixed issue that temperature can't go negative<br>
 ***v0.2.4*** - changed parameter list for remote commands to hubConnect, fixed water valves<br>
 ***v0.2.5*** - fixed on/off for fan controllers with setLevel support<br>
+***v0.2.6*** - fixed issues with setting HSM and modes from Homekit and receiving an update response to it<br>
 # Explanation:
 
 ### Direct Updates
