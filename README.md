@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.2.6```**
+**```Current App version: 0.2.7```**
 
 <br>
 
@@ -24,6 +24,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.2.4*** - changed parameter list for remote commands to hubConnect, fixed water valves<br>
 ***v0.2.5*** - fixed on/off for fan controllers with setLevel support<br>
 ***v0.2.6*** - fixed issues with setting HSM and modes from Homekit and receiving an update response to it<br>
+***v0.2.7*** - always listen to event socket to receive mode updates<br>
 # Explanation:
 
 ### Direct Updates
