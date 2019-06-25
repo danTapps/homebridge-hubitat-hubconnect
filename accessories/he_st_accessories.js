@@ -502,34 +502,51 @@ function HE_ST_Accessory(platform, group, device, accessory) {
                 var characteristicType = Characteristic.Brightness;
                 var factor = 1;
                 if (deviceIsFan()) {
+                    var listenTo = 'level';
                     if (deviceHasAttributeCommand('speed', 'setSpeed') === true)
                     {
                         delete that.device.attributes['speed'];
                     }
+                    if (deviceHasAttributeCommand('switch', 'on') === true)
+                        listenTo = 'switch';
                     serviceType = Service.Fanv2;
                     characteristicType = Characteristic.RotationSpeed;
                     factor = 2.55;
                     this.deviceGroup = "fan";
                     thisCharacteristic = that.getaddService(Service.Fanv2).getCharacteristic(Characteristic.Active)
                         .on('get', function(callback) {
-                            callback(null, that.device.attributes.level>0);
+                            var state = that.device.attributes.level>0;
+                            if (deviceHasAttributeCommand('switch', 'on') === true)
+                                state = that.device.attributes.switch === 'on' ? true : false;
+                            platform.log(that.name + ' -> getting fan state: ' + state + ' determined by ' + listenTo);
+                            callback(null, state);
                         })
                         .on('set', function(value,callback) {
+                            var cmd = 'setLevel';
+                            var cmdValue = null;
                             if (value === 0)
-                                platform.api.runCommand(device.deviceid, "setLevel", {
-                                    value1: "0"
+                                cmdValue = "0";
+                            else 
+                                cmdValue = "100";
+                            if (deviceHasAttributeCommand('switch', 'on') === true) {
+                                if (value === 0) {
+                                    cmd = 'off';
+                                    cmdValue = null;
+                                }
+                                else {
+                                    cmd = 'on';
+                                    cmdValue = null;
+                                }
+                            }
+                            platform.log(that.name + ' -> setting fan state to on with cmd: ' + cmd + ' and value: ' + cmdValue);
+                            if (cmdValue)
+                                platform.api.runCommand(device.deviceid, cmd, {
+                                    value1: cmdValue
                                 }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
                             else
-                            {
-                                var fanValue = that.device.attributes.level;
-                                if (fanValue === 0)
-                                    fanValue = "100";
-                                platform.api.runCommand(device.deviceid, "setLevel", {
-                                    value1: fanValue
-                                }).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
-                            }
+                                platform.api.runCommand(device.deviceid, cmd).then(function(resp) {if (callback) callback(null, value); }).catch(function(err) { if (callback) callback(err); });
                         });
-                        platform.addAttributeUsage('level', device.deviceid, thisCharacteristic);
+                        platform.addAttributeUsage(listenTo, device.deviceid, thisCharacteristic);
                 }
 
                 thisCharacteristic = that.getaddService(serviceType).getCharacteristic(characteristicType)
@@ -702,11 +719,16 @@ function HE_ST_Accessory(platform, group, device, accessory) {
     }
     if (that.device.attributes.hasOwnProperty('door')) {
         that.deviceGroup = "door";
+        if ((that.device.attributes.door === 'closed') || (that.device.attributes.door === 'closing'))
+            that.device.attributes.doorTarget = 'closed';
+        if ((that.device.attributes.door === 'open') ||  (that.device.attributes.door === 'opening'))
+            that.device.attributes.doorTarget = 'open';
+    
         thisCharacteristic = that.getaddService(Service.GarageDoorOpener).getCharacteristic(Characteristic.TargetDoorState)
             .on('get', function(callback) {
-                if (that.device.attributes.door === 'closed' || that.device.attributes.door === 'closing') {
+                if (that.device.attributes.doorTarget === 'closed') {
                     callback(null, Characteristic.TargetDoorState.CLOSED);
-                } else if (that.device.attributes.door === 'open' || that.device.attributes.door === 'opening') {
+                } else if (that.device.attributes.doorTarget === 'open') {
                     callback(null, Characteristic.TargetDoorState.OPEN);
                 }
             })
@@ -719,30 +741,57 @@ function HE_ST_Accessory(platform, group, device, accessory) {
                     that.device.attributes.door = 'closing';
                 }
             });
-        platform.addAttributeUsage('door', device.deviceid, thisCharacteristic);
+        platform.addAttributeUsage('doorTarget', device.deviceid, thisCharacteristic);
 
         thisCharacteristic = that.getaddService(Service.GarageDoorOpener).getCharacteristic(Characteristic.CurrentDoorState)
            .on('get', function(callback) {
                 switch (that.device.attributes.door) {
                     case 'open':
-                        callback(null, Characteristic.TargetDoorState.OPEN);
-                        break;
                     case 'opening':
-                        callback(null, Characteristic.TargetDoorState.OPENING);
+                        platform.processFieldUpdate({
+                            device: device.deviceid,
+                            displayName: device.name,
+                            attribute:  'doorTarget',
+                            value: 'open',
+                            date:  new Date()
+                        }, platform);
                         break;
                     case 'closed':
-                        callback(null, Characteristic.TargetDoorState.CLOSED);
+                    case 'closing':
+                        platform.processFieldUpdate({
+                            device: device.deviceid,
+                            displayName: device.name,
+                            attribute:  'doorTarget',
+                            value: 'closed',
+                            date:  new Date()
+                        }, platform);
+                        break;
+                }
+                switch (that.device.attributes.door) {
+                    case 'open':
+                        callback(null, Characteristic.CurrentDoorState.OPEN);
+                        that.getaddService(Service.GarageDoorOpener).setCharacteristic(Characteristic.ObstructionDetected, false);
+                        break;
+                    case 'opening':
+                        callback(null, Characteristic.CurrentDoorState.OPENING);
+                        that.getaddService(Service.GarageDoorOpener).setCharacteristic(Characteristic.ObstructionDetected, false);
+                        break;
+                    case 'closed':
+                        callback(null, Characteristic.CurrentDoorState.CLOSED);
+                        that.getaddService(Service.GarageDoorOpener).setCharacteristic(Characteristic.ObstructionDetected, false);
                         break;
                     case 'closing':
-                        callback(null, Characteristic.TargetDoorState.CLOSING);
+                        callback(null, Characteristic.CurrentDoorState.CLOSING);
+                        that.getaddService(Service.GarageDoorOpener).setCharacteristic(Characteristic.ObstructionDetected, false);
                         break;
                     default:
-                        callback(null, Characteristic.TargetDoorState.STOPPED);
+                        callback(null, Characteristic.CurrentDoorState.STOPPED);
+                        that.getaddService(Service.GarageDoorOpener).setCharacteristic(Characteristic.ObstructionDetected, true);
                         break;
                 }
             });
         platform.addAttributeUsage('door', device.deviceid, thisCharacteristic);
-        that.getaddService(Service.GarageDoorOpener).setCharacteristic(Characteristic.ObstructionDetected, false);
+        //    that.getaddService(Service.GarageDoorOpener).setCharacteristic(Characteristic.ObstructionDetected, false);
     }
     if (that.device.attributes.hasOwnProperty('smoke')) {
         that.deviceGroup = "sensor";
@@ -1361,6 +1410,7 @@ function loadData(data, myObject) {
 function getServices() {
     return this.accessory.services;
 }
+
 
 
 
