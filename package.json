@@ -12,6 +12,9 @@
     "winston-logrotate": "=1.3.0",
     "ws": "^6.2.1"
   },
+  "devDependencies": {
+  "lodash": ">=4.17.13"
+  },
   "deprecated": false,
   "description": "Hubitat HubConnect plugin for HomeBridge",
   "engines": {
