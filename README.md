@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.2.8```**
+**```Current App version: 0.2.9```**
 
 <br>
 
@@ -26,6 +26,8 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.2.6*** - fixed issues with setting HSM and modes from Homekit and receiving an update response to it<br>
 ***v0.2.7*** - always listen to event socket to receive mode updates<br>
 ***v0.2.8*** - Hampton Bay Fan Controllers say they have speed level even though they are off, let's fix that, fixed on/off for hampton bay controller, fixed water valve
+***v0.2.9*** Added some debug for fans....,Fixed garage door implementation and set obstruction when status is unknown/stopped,Added "debug" mode to see calls to MakerAPI in output. See description below on how to enable it, Added ability to write logging to file
+
 # Explanation:
 
 ### Direct Updates
@@ -72,12 +74,21 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;hsm&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">true</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;debug&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">false</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;temperature_unit&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">"F"</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;excluded_attributes&quot;</span><span style="color: #f8f8f2">: {</span>
    <span style="color: lightblue">    &quot;HUBITAT-DEVICE-ID-1&quot;</span><span style="color: #f8f8f2">: [</span>
    <span style="color: orange">       &quot;power&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: orange">       &quot;humidity&quot;</span>
    <span style="color: #f8f8f2">    ]</span>
+   <span style="color: #f8f8f2">},</span>
+   <span style="color: #f92672">&quot;logFile&quot;</span><span style="color: #f8f8f2">: {</span>
+   <span style="color: #f92672">      &quot;enabled&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">      &quot;path&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;&quot;</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">      &quot;file&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;&quot;</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">      &quot;compress&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">      &quot;keep&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">5</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">      &quot;size&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10m&quot;</span><span style="color: #f8f8f2"></span>
    <span style="color: #f8f8f2">}<br>}</span>
 </pre></div>
 
@@ -106,6 +117,30 @@ Installation comes in two parts:
  * <p><u>temperature_unit</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
     Default to F<br>Ability to configure between Celsius and Fahrenheit. Possible values: "F" or "C"</small></p>
 
+
+ * <p><u>debug</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+    Default to false<br>Enables debugging of HTTP calls to MakerAPI to troubleshoot issues</p>
+ 
+ * <p><u>logFile</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+    Settings to enable logging to file. Uses winston logging facility 
+
+   * <p><u>enabled</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+      Enable logging to file. Default is false. Set to true to enable file logging
+
+   * <p><u>path</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+      Path to store log files. Defaults to path where config.json is stored - Only applicable if logFile -> enable is set to true
+
+   * <p><u>file</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+      Filename of log file. Default is homebridge-hubitat.log - Only applicable if logFile -> enable is set to true
+
+   * <p><u>compress</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+      Compress log files when they rotate. Default is true - Only applicable if logFile -> enable is set to true
+
+   * <p><u>keep</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+      Number of log files to keep before deleting old log files. Default is 5 - Only applicable if logFile -> enable is set to true
+
+   * <p><u>size</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+      Maximum size of log file. Default is 10m - Only applicable if logFile -> enable is set to true
 
 ## Attribute Filtering
 The **homebridge-hubitat-hubconnect** creates Homekit devices based on the attributes of devices. 

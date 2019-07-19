@@ -43,12 +43,23 @@ function HE_ST_Platform(log, config, api) {
         log('Plugin not configured in config.json, disabled plugin');
         return null;
     }
-
+    var logFileSettings = null;
+    if (config['logFile']) {
+        if (config['logFile'].enabled) {
+           logFileSettings = {};
+           logFileSettings.path = config['logFile'].path || api['user'].storagePath();
+           logFileSettings.file = config['logFile'].file || "homebridge-hubitat.log";
+           logFileSettings.compress = config['logFile'].compress || true;
+           logFileSettings.keep = config['logFile'].keep || 5;
+           logFileSettings.size = config['logFile'].size || '10m';
+        }
+    }
+ 
     this.config = config; 
     if (pluginName === 'homebridge-hubitat-makerapi')
-        this.log = Logger.withPrefix( this.config['name']+ ' hhm:' + npm_version);
+        this.log = Logger.withPrefix( this.config['name']+ ' hhm:' + npm_version, config['debug'] || false, logFileSettings);
     else
-        this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + npm_version);
+        this.log = Logger.withPrefix( this.config['name']+ ' hhh:' + npm_version, config['debug'] || false, logFileSettings);
     this.platformName = platformName;
     this.temperature_unit = config['temperature_unit'];
     if (this.temperature_unit === null || this.temperature_unit === undefined || (this.temperature_unit !== 'F' && this.temperature_unit !== 'C'))
@@ -666,5 +677,4 @@ function getIPAddress() {
     }
     return '0.0.0.0';
 }
-
 
