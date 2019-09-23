@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.2.10```**
+**```Current App version: 0.2.11```**
 
 <br>
 
@@ -27,7 +27,8 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.2.7*** - always listen to event socket to receive mode updates<br>
 ***v0.2.8*** - Hampton Bay Fan Controllers say they have speed level even though they are off, let's fix that, fixed on/off for hampton bay controller, fixed water valve
 ***v0.2.9*** Added some debug for fans....,Fixed garage door implementation and set obstruction when status is unknown/stopped,Added "debug" mode to see calls to MakerAPI in output. See description below on how to enable it, Added ability to write logging to file<br>
-***v0.2.10*** Fixed rounding issue with thermostats in auto mode
+***v0.2.10*** Fixed rounding issue with thermostats in auto mode<br>
+***v0.2.11*** Added thermostat fan switch support (thanks @swiss6th), added ping/pong for websockets (thanks @asj)<br>
 
 # Explanation:
 
