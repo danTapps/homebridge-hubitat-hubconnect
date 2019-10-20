@@ -7,7 +7,7 @@ function capabilityToAttributeMap() {
     "battery": ["battery"],
     "beacon": ["presence"],
     "bulb": ["switch"],
-    "button": ["button","holdableButton","numberOfButtons"],
+    "button": ["button","holdableButton","numberOfButtons","pushed"],
     "carbondioxidemeasurement": ["carbonDioxide"],
     "carbonmonoxidedetector": ["carbonMonoxide"],
     "chime": ["soundEffects","soundName","status"],
@@ -85,6 +85,7 @@ function capabilityToAttributeMap() {
 module.exports = {
         capabilityToAttributeMap: capabilityToAttributeMap
     }
+
 
 
 
