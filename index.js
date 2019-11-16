@@ -44,6 +44,7 @@ function HE_ST_Platform(log, config, api) {
         return null;
     }
     var logFileSettings = null;
+
     if (config['logFile']) {
         if (config['logFile'].enabled) {
            logFileSettings = {};
@@ -54,6 +55,15 @@ function HE_ST_Platform(log, config, api) {
            logFileSettings.size = config['logFile'].size || '10m';
         }
     }
+    else {
+        logFileSettings = {};
+        logFileSettings.path = api['user'].storagePath();
+        logFileSettings.file = "homebridge-hubitat.log";
+        logFileSettings.compress = true;
+        logFileSettings.keep = 5;
+        logFileSettings.size = '10m';
+    }
+    this.logFileSettings = logFileSettings;
  
     this.config = config; 
     if (pluginName === 'homebridge-hubitat-makerapi')
@@ -144,11 +154,18 @@ HE_ST_Platform.prototype = {
                     if (that.communication_reload_running != true) {
                         that.communication_reload_running = true;
                         that.log.good('Set communcation_broken to ' + newValue);
-                        that.reloadData(function() { 
-                            that.communication_broken = newValue; 
+                        if (that.firstpoll == false) {
+                            that.reloadData(function() { 
+                                that.communication_broken = newValue; 
+                                that.communication_reload_running = false;
+                                resolve(''); 
+                            });
+                        }
+                        else {
+                            that.communication_broken = newValue;
                             that.communication_reload_running = false;
-                            resolve(''); 
-                        });
+                            resolve('');
+                        }
                     }
                 }
             }
@@ -261,6 +278,7 @@ HE_ST_Platform.prototype = {
                 that.log('polling_seconds really shouldn\'t be smaller than 30 seconds. Setting it to 30 seconds');
                 that.polling_seconds = 30;
             }
+            that.removeDeviceAttributeUsage('filterundefined');
             setInterval(that.reloadData.bind(that), that.polling_seconds * 1000);
             setInterval(that.doVersionCheck.bind(that), 24 * 60 * 60 * 1000); //60 seconds
             that.receiver.start(that);
@@ -337,7 +355,31 @@ HE_ST_Platform.prototype = {
     updateDevices: function(devices) {
         var that = this;
         return new Promise(function(resolve, reject) {
-            if (!that.firstpoll) {
+            if ((that.communication_broken) && (!that.firstpoll)) {
+                that.log('Updating attrbutes via HTTP');
+                for (var i = 0; i < devices.length; i++) {
+                    if (devices[i].type !== undefined) {
+                        if (that.deviceLookup[uuidGen(devices[i].data.deviceid)] instanceof HE_ST_Accessory)
+                        {
+                            var accessory = that.deviceLookup[uuidGen(devices[i].data.deviceid)];
+                            accessory.updateAttributes(devices[i].data, that);
+                        }
+                    } else {
+                        he_st_api.getDeviceInfo(devices[i].id)
+                            .then(function(data) {
+                                if (that.deviceLookup[uuidGen(data.deviceid)] instanceof HE_ST_Accessory)
+                                {
+                                    var accessory = that.deviceLookup[uuidGen(data.deviceid)];
+                                    accessory.updateAttributes(data, that);
+                                    //accessory.loadData(devices[i]);
+                                }    
+                            }).catch(function(error) {
+                                that.log.error(error);
+                            });
+                    }
+                }   
+            }
+            if(!that.firstpoll) { 
                 var updateAccessories = [];
                 for (var key in that.deviceLookup) {
                     if (that.deviceLookup.hasOwnProperty(key)) {
@@ -432,10 +474,11 @@ HE_ST_Platform.prototype = {
         }).then(function(myList) {
             return that.populateDevices(myList);
         }).then(function(myList) {
-            return that.updateDevices();
+            return that.updateDevices(myList);
         }).then(function(myList) {
             if (callback)
                 callback(foundAccessories);
+            that.setCommunicationBroken(false).then(function() {}).catch(function(){});
             that.firstpoll = false;
         }).catch(function(error) {
             if (error.hasOwnProperty('statusCode'))
@@ -462,6 +505,7 @@ HE_ST_Platform.prototype = {
                 that.log.error('Received an error trying to get the device summary information from Hubitat.', error);
             }
             that.log.error('I am stopping my reload here and hope eveything fixes themselves (e.g. a firmware update of HE is rebooting the hub');
+            that.setCommunicationBroken(true).then(function() {}).catch(function(){});
             if (callback)
                 callback(null);
         });
@@ -645,6 +689,14 @@ HE_ST_Platform.prototype = {
         var that = this;
         callback([]);
     },
+    dumpAttributeDevices: function(attribute) {
+        if (!this.attributeLookup[attribute])
+            platform.log.debug('Attribute ' + attribute + ' is not used at all');
+        else
+            for (k in this.attributeLookup[attribute]) {
+                platform.log.debug('Attribute ' + attribute + ' is defined for device id ' + k);
+            }
+    },
     isAttributeUsed: function(attribute, deviceid) {
         if (!this.attributeLookup[attribute])
             return false;
@@ -727,4 +779,3 @@ function getIPAddress() {
     }
     return '0.0.0.0';
 }
-
