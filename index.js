@@ -109,6 +109,7 @@ function HE_ST_Platform(log, config, api) {
     else
         this.receiver = require('./lib/receiver-homebridge-hubitat-hubconnect.js').receiver;
     this.hb_api.on('didFinishLaunching', this.didFinishLaunching.bind(this));
+    this.delete_cache_devices = config['delete_cache_devices'] || false;
     this.asyncCallWait = 0;
 }
 
@@ -160,9 +161,12 @@ HE_ST_Platform.prototype = {
         return new Promise(function(resolve, reject) {
             //that.log.error('addUpdateAccessory', deviceid, group, inAccessory, inDevice);
             var accessory;
-            if (that.deviceLookup && that.deviceLookup[uuidGen(deviceid)]) {
-                if (that.deviceLookup[uuidGen(deviceid)] instanceof HE_ST_Accessory)
-                {
+            if (that.delete_cache_devices == true) {
+                that.log.warn('Not adding new devices as flag delete_cache_devices is set to true in config');
+                resolve(accessory);
+            }
+            else if (that.deviceLookup && that.deviceLookup[uuidGen(deviceid)]) {
+                if (that.deviceLookup[uuidGen(deviceid)] instanceof HE_ST_Accessory) {
                     accessory = that.deviceLookup[uuidGen(deviceid)];
                     //accessory.loadData(devices[i]);
                     resolve(accessory);
@@ -292,9 +296,11 @@ HE_ST_Platform.prototype = {
         var that = this;
         return new Promise(function(resolve, reject) {
             var accessories = [];
+            if (that.delete_cache_devices == true)
+                that.log.warn('Deleting all devices as delete_cache_devices is set to true in config!');
             for (var key in that.deviceLookup) {
                 if (that.deviceLookup.hasOwnProperty(key)) {
-                    if (!(that.deviceLookup[key] instanceof HE_ST_Accessory))
+                    if ((!(that.deviceLookup[key] instanceof HE_ST_Accessory)) || (that.delete_cache_devices == true))
                         that.removeAccessory(that.deviceLookup[key]).catch(function(error) {});
                 }
             }
