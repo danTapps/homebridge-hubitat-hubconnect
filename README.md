@@ -29,7 +29,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.2.9*** Added some debug for fans....,Fixed garage door implementation and set obstruction when status is unknown/stopped,Added "debug" mode to see calls to MakerAPI in output. See description below on how to enable it, Added ability to write logging to file<br>
 ***v0.2.10*** Fixed rounding issue with thermostats in auto mode<br>
 ***v0.2.11*** Added thermostat fan switch support (thanks @swiss6th), added ping/pong for websockets (thanks @asj)<br>
-***v0.3.0*** Device updates retrieved via websocket, Added thermostat fan switch support, Added support for colorTemperature bulbs
+***v0.3.0*** Device updates retrieved via websocket, Added thermostat fan switch support, Added support for colorTemperature bulbs, Fixed thermostat low battery warnings, fixed iOS13 duplicate calling of setThermostatOperationgMode, Added Button support, limited to "push" for 1 button, see "programmable_buttons" for advanced programmable button support (thanks to @swiss6th for the code base), Added automatic detection of free port, Added diagnostic website hosted by plugin to see/download log files and enable debug logging
 # Explanation:
 
 ### Direct Updates
@@ -72,12 +72,16 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;platform&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;Hubitat-HubConnect&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;name&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;Hubitat&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;hubconnect_key&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;THIS-SHOULD-BE-YOUR-CONNECTION-KEY&quot;</span><span style="color: #f8f8f2">,</span>
-   <span style="color: #f92672">&quot;mode_switches&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2">,</span>
-   <span style="color: #f92672">&quot;hms&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">true</span><span style="color: #f8f8f2">,</span>
-   <span style="color: #f92672">&quot;debug&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">false</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;temperature_unit&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">"F"</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;mode_switches&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;hsm&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>   
+   <span style="color: #f92672">&quot;debug&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">false</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;programmable_buttons&quot;</span><span style="color: #f8f8f2">: [</span>
+   <span style="color: orange">     &quot;97&quot;</span><span style="color: #f8f8f2">,</span>
+   <span style="color: orange">     &quot;98&quot;</span><span style="color: #f8f8f2"></span>
+   <span style="color: #f8f8f2">],</span>
    <span style="color: #f92672">&quot;excluded_attributes&quot;</span><span style="color: #f8f8f2">: {</span>
    <span style="color: lightblue">    &quot;HUBITAT-DEVICE-ID-1&quot;</span><span style="color: #f8f8f2">: [</span>
    <span style="color: orange">       &quot;power&quot;</span><span style="color: #f8f8f2">,</span>
@@ -101,9 +105,6 @@ Installation comes in two parts:
  * <p><u>app_url</u> & <u>hubconnect_key</u>  <small style="color: orange; font-weight: 600;"><i>Required</i></small><br>
     This is the HubConnect Connection Key to allow to retrieve the connection paramters to the HubConnect App.</small></p>
 
- * <p><u>mode_switches</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
-    Creates virtual switches to contol Hubitat Modes. Possible values true|false. Default is false</small></p>
-
  * <p><u>local_ip</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
     Defaults to first available IP on your computer<br><small style="color: gray;">Most installations won't need this, but if for any reason it can't identify your ip address correctly, use this setting to force the IP presented to Hubitat for the hub to send to.</small></p>
 
@@ -113,12 +114,17 @@ Installation comes in two parts:
  * <p><u>excluded_attributes</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
    Defaults to None<br>Specify the Hubitat device by ID and the associated attributes you want homebridge-hubitat-makerapi to ignore. This prevents a Hubitat device from creating unwanted or redundant HomeKit accessories</small></p>
 
- * <p><u>hsm</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
-   Defaults to False<br>Creates a Alarm System icon in Homekit and allows your to arm and disarm your HSM</small></p>
+* <p><u>programmable_buttons</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
+   Defaults to None<br>By default, pressing Buttons in Homekit trigger a "pushed" event for button number 1 in Hubitat. The setting "programmable_buttons" allows Hubitat to trigger HomeKit specific scenes. You can assign scenes to three types of events: Pushed, Held and DoubleTapped. This can be helpful to interact with Homekit only devices. E.g. a button press in HE can trigger a HomeKit only lock to lock. Note: there is no feedback if the Homekit scene was executed successfully or not. Specify the Hubitat device by ID in this setting to create a programmable button.</small></p>
 
  * <p><u>temperature_unit</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
     Default to F<br>Ability to configure between Celsius and Fahrenheit. Possible values: "F" or "C"</small></p>
 
+ * <p><u>mode_switches</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+    Default to false<br>Create switches for modes and ability to switch modes by enabling such switches Possible values: true or false<br>Requires HE fimrware 2.0.9 or newer</p>
+
+ * <p><u>hsm</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+    Default to false<br>Integrates HSM into Home app and allow to arm/disarm the hsm and receive notifications on intrusions<br>Requires HE firmware 2.0.9 or newer</p>
 
  * <p><u>debug</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
     Default to false<br>Enables debugging of HTTP calls to MakerAPI to troubleshoot issues</p>
@@ -127,7 +133,7 @@ Installation comes in two parts:
     Settings to enable logging to file. Uses winston logging facility 
 
    * <p><u>enabled</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
-      Enable logging to file. Default is false. Set to true to enable file logging
+      Enable logging to file. Default is true. Set to true to enable file logging
 
    * <p><u>path</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
       Path to store log files. Defaults to path where config.json is stored - Only applicable if logFile -> enable is set to true
@@ -182,4 +188,3 @@ To do so, you would add the following configuration to your config.json:
    <span style="color: #f8f8f2">    ]</span>
    <span style="color: #f8f8f2">}</span>
 </pre></div>
-
