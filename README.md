@@ -29,7 +29,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.2.9*** Added some debug for fans....,Fixed garage door implementation and set obstruction when status is unknown/stopped,Added "debug" mode to see calls to MakerAPI in output. See description below on how to enable it, Added ability to write logging to file<br>
 ***v0.2.10*** Fixed rounding issue with thermostats in auto mode<br>
 ***v0.2.11*** Added thermostat fan switch support (thanks @swiss6th), added ping/pong for websockets (thanks @asj)<br>
-***v0.3.0*** Device updates retrieved via websocket, Added thermostat fan switch support, Added support for colorTemperature bulbs, Fixed thermostat low battery warnings, fixed iOS13 duplicate calling of setThermostatOperationgMode, Added Button support, limited to "push" for 1 button, see "programmable_buttons" for advanced programmable button support (thanks to @swiss6th for the code base), Added automatic detection of free port, Added diagnostic website hosted by plugin to see/download log files and enable debug logging
+***v0.3.0*** Device updates retrieved via websocket, Added thermostat fan switch support, Added support for colorTemperature bulbs, Fixed thermostat low battery warnings, fixed iOS13 duplicate calling of setThermostatOperationgMode, Added Button support, limited to "push" for 1 button, see "programmable_buttons" for advanced programmable button support (thanks to @swiss6th for the code base), Added automatic detection of free port, Added diagnostic website hosted by plugin to see/download log files and enable debug logging, implemented new support interface for HubConnect 1.5
 # Explanation:
 
 ### Direct Updates
