@@ -6,7 +6,12 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 **```Current App version: 0.3.0```**
 
-<br>
+##### Table of Contents  
+**[Change Log](#change-log)**<br>
+**[Installation](#installation)**<br>
+**[Configuration File Parameters](#configuration-file-parameters)**<br>
+**[Attribute Filtering](#attribute-filtering)**<br>
+**[Troubleshooting](#troubleshooting)**<br>
 
 # Change Log:
 
@@ -60,11 +65,14 @@ Installation comes in two parts:
 
 ## 3. Homebridge Plugin Installation:
 
- 1. Install homebridge using: ```npm i -g homebridge``` (For Homebridge Install: [Homebridge Instructions](https://github.com/nfarina/homebridge/blob/master/README.md))
- 2. Install Hubitat plugin using: ```npm i -g homebridge-hubitat-hubconnect```
- 3. Update your configuration file. See sample config.json snippet below.
+ 1. Install homebridge using: ```sudo npm i -g homebridge``` (For Homebridge Install: [Homebridge Instructions](https://github.com/nfarina/homebridge/blob/master/README.md))
+ 2. Install Hubitat plugin using: ```sudo npm i -g homebridge-hubitat-hubconnect```
+ 3. Create your config.json configuration file. The config.json file has to be stored in the folder ~/.homebridge
+ 4. To help creating your inital configuration file, **<a href="https://dantapps.github.io" target="_blank">click here</a>** for some assistance.
+ 5. Start homebridge using the command: ```homebridge```
 
-  <h3 style="padding: 0em .6em;">Config.json Settings Example</h3>
+
+ # Configuration File Parameters
 
   <h4 style="padding: 0em .6em; margin-bottom: 5px;"><u>Example of all settings. Not all settings are required. Read the breakdown below</u></h4>
 
@@ -188,3 +196,12 @@ To do so, you would add the following configuration to your config.json:
    <span style="color: #f8f8f2">    ]</span>
    <span style="color: #f8f8f2">}</span>
 </pre></div>
+
+# Troubleshooting
+With version ***v0.3.0*** a plugin dashboard is available to help troubeshooting.
+The dashboard is a website that can be reached while homebridge and the plugin are running.
+To reach the dashboard, you can follow these steps:
+1. Open a browser and go to the URL http://<IF-OF-HOMEBRIDGE-SERVER>:<LOCAL-PORT-OF-THIS-PLUGIN>
+2. You will see a view like this, showing you the logging output of the plugin, the ability to download the log-file to your computer, enablign, disabling debug mode and see your current configuration
+![alt text](https://raw.githubusercontent.com/danTapps/homebridge-hubitat-hubconnect/dev/images/dashboard.png "Dashboard")
+
