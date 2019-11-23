@@ -396,7 +396,7 @@ function HE_ST_Accessory(platform, group, device, accessory) {
                             that.device.attributes.thermostatSetpoint = temp;
                             break;
                         default:
-                            platform.api.runCommand(device.deviceid, 'setThermostatSetpoint ', {
+                            platform.api.runCommand(device.deviceid, 'setThermostatSetpoint', {
                                 value1: temp
                             }).then(function(resp) {
                                 if (callback)
@@ -1502,6 +1502,8 @@ function convertAlarmState(value, valInt = false) {
         case 'off':
         case 'disarm':
         case 'disarmed':
+        case 'allDisarmed':
+        case 'alldisarmed':
         case 3:
             return valInt ? Characteristic.SecuritySystemCurrentState.DISARMED : 'disarm';
         case 'alarm_active':

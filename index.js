@@ -22,9 +22,12 @@ const os = require('os');
 const uuidGen = require('./accessories/he_st_accessories').uuidGen;
 const uuidDecrypt = require('./accessories/he_st_accessories').uuidDecrypt;
 const Logger = require('./lib/Logger.js').Logger;
+var homebridge_version, homebride_serverVersion;
 
 module.exports = function(homebridge) {
     console.log("Homebridge Version: " + homebridge.version);
+    homebride_serverVersion = homebridge.serverVersion;
+    homebridge_version = homebridge.version;
     console.log("Plugin Version: " + npm_version);
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
@@ -64,7 +67,8 @@ function HE_ST_Platform(log, config, api) {
         logFileSettings.size = '10m';
     }
     this.logFileSettings = logFileSettings;
- 
+    this.homebridge_version = homebridge_version;
+    this.homebride_serverVersion = homebride_serverVersion;
     this.config = config; 
     if (pluginName === 'homebridge-hubitat-makerapi')
         this.log = Logger.withPrefix( this.config['name']+ ' hhm:' + npm_version, config['debug'] || false, logFileSettings);
