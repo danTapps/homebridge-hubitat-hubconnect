@@ -201,7 +201,7 @@ To do so, you would add the following configuration to your config.json:
 With version ***v0.3.0*** a plugin dashboard is available to help troubeshooting.
 The dashboard is a website that can be reached while homebridge and the plugin are running.
 To reach the dashboard, you can follow these steps:
-1. Open a browser and go to the URL http://<IF-OF-HOMEBRIDGE-SERVER>:<LOCAL-PORT-OF-THIS-PLUGIN>
+1. Open a browser and go to the URL http://[IF-OF-HOMEBRIDGE-SERVER]:[LOCAL-PORT-OF-THIS-PLUGIN]/
 2. You will see a view like this, showing you the logging output of the plugin, the ability to download the log-file to your computer, enablign, disabling debug mode and see your current configuration
 ![alt text](https://raw.githubusercontent.com/danTapps/homebridge-hubitat-hubconnect/dev/images/dashboard.png "Dashboard")
 
