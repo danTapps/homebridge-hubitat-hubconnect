@@ -22,9 +22,12 @@ const os = require('os');
 const uuidGen = require('./accessories/he_st_accessories').uuidGen;
 const uuidDecrypt = require('./accessories/he_st_accessories').uuidDecrypt;
 const Logger = require('./lib/Logger.js').Logger;
+var homebridge_version, homebride_serverVersion;
 
 module.exports = function(homebridge) {
     console.log("Homebridge Version: " + homebridge.version);
+    homebride_serverVersion = homebridge.serverVersion;
+    homebridge_version = homebridge.version;
     console.log("Plugin Version: " + npm_version);
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
@@ -44,6 +47,7 @@ function HE_ST_Platform(log, config, api) {
         return null;
     }
     var logFileSettings = null;
+
     if (config['logFile']) {
         if (config['logFile'].enabled) {
            logFileSettings = {};
@@ -54,7 +58,17 @@ function HE_ST_Platform(log, config, api) {
            logFileSettings.size = config['logFile'].size || '10m';
         }
     }
- 
+    else {
+        logFileSettings = {};
+        logFileSettings.path = api['user'].storagePath();
+        logFileSettings.file = "homebridge-hubitat.log";
+        logFileSettings.compress = true;
+        logFileSettings.keep = 5;
+        logFileSettings.size = '10m';
+    }
+    this.logFileSettings = logFileSettings;
+    this.homebridge_version = homebridge_version;
+    this.homebride_serverVersion = homebride_serverVersion;
     this.config = config; 
     if (pluginName === 'homebridge-hubitat-makerapi')
         this.log = Logger.withPrefix( this.config['name']+ ' hhm:' + npm_version, config['debug'] || false, logFileSettings);
@@ -80,6 +94,7 @@ function HE_ST_Platform(log, config, api) {
     this.access_token = config['access_token'];
     this.excludedAttributes = config["excluded_attributes"] || [];
     this.excludedCapabilities = config["excluded_capabilities"] || [];
+    this.programmable_buttons = config["programmable_buttons"] || [];
     // This is how often it does a full refresh
     this.polling_seconds = config['polling_seconds'];
     // Get a full refresh every hour.
@@ -90,13 +105,15 @@ function HE_ST_Platform(log, config, api) {
     this.enable_hsm = config['hsm'] || false;
     this.mode_switches =  config['mode_switches'] || false;
     this.add_reboot_switch = config['add_reboot_switch'] || false;
-
+    this.communication_test_device = config['communication_test_device'] || null;
     // This is how often it polls for subscription data.
     this.api = he_st_api;
     this.deviceLookup = {};
     this.firstpoll = true;
     this.attributeLookup = {};
     this.hb_api = api;
+    this.communication_broken = true;
+    this.communication_reload_running = false;
     this.version_speak_device = this.config['version_speak_device'];
     this.versionCheck = require('./lib/npm_version_check')(pluginName,npm_version,this.log,null);
     this.doVersionCheck();
@@ -106,6 +123,7 @@ function HE_ST_Platform(log, config, api) {
     else
         this.receiver = require('./lib/receiver-homebridge-hubitat-hubconnect.js').receiver;
     this.hb_api.on('didFinishLaunching', this.didFinishLaunching.bind(this));
+    this.delete_cache_devices = config['delete_cache_devices'] || false;
     this.asyncCallWait = 0;
 }
 
@@ -128,15 +146,48 @@ HE_ST_Platform.prototype = {
             });
         }
     },
+    setCommunicationBroken: function (newValue = true)
+    {
+        var that = this;
+        return new Promise(function(resolve, reject) {
+            if (that.communication_broken !== newValue) {
+                if (newValue) {
+                    that.log.error('Set communcation_broken to ' + newValue);
+                    that.communication_broken = newValue; resolve('');
+                }
+                else {
+                    if (that.communication_reload_running != true) {
+                        that.communication_reload_running = true;
+                        that.log.good('Set communcation_broken to ' + newValue);
+                        if (that.firstpoll == false) {
+                            that.reloadData(function() { 
+                                that.communication_broken = newValue; 
+                                that.communication_reload_running = false;
+                                resolve(''); 
+                            });
+                        }
+                        else {
+                            that.communication_broken = newValue;
+                            that.communication_reload_running = false;
+                            resolve('');
+                        }
+                    }
+                }
+            }
+        });
+    },
     addUpdateAccessory: function(deviceid, group, inAccessory = null, inDevice = null)
     {
         var that = this;
         return new Promise(function(resolve, reject) {
             //that.log.error('addUpdateAccessory', deviceid, group, inAccessory, inDevice);
             var accessory;
-            if (that.deviceLookup && that.deviceLookup[uuidGen(deviceid)]) {
-                if (that.deviceLookup[uuidGen(deviceid)] instanceof HE_ST_Accessory)
-                {
+            if (that.delete_cache_devices == true) {
+                that.log.warn('Not adding new devices as flag delete_cache_devices is set to true in config');
+                resolve(accessory);
+            }
+            else if (that.deviceLookup && that.deviceLookup[uuidGen(deviceid)]) {
+                if (that.deviceLookup[uuidGen(deviceid)] instanceof HE_ST_Accessory) {
                     accessory = that.deviceLookup[uuidGen(deviceid)];
                     //accessory.loadData(devices[i]);
                     resolve(accessory);
@@ -148,6 +199,7 @@ HE_ST_Platform.prototype = {
                             var fromCache = ((inAccessory !== undefined) && (inAccessory !== null))
                             data.excludedAttributes = that.excludedAttributes[deviceid] || ["None"];
                             data.excludedCapabilities = that.excludedCapabilities[deviceid] || ["None"];
+                            data.programmableButton = that.isProgrammableButton(deviceid);
                             accessory = new HE_ST_Accessory(that, group, data, inAccessory);
                             // that.log(accessory);
                             if (accessory !== undefined) {
@@ -187,6 +239,7 @@ HE_ST_Platform.prototype = {
                 }
                 else {
                     var fromCache = ((inAccessory !== undefined) && (inAccessory !== null))
+                    inDevice.programmableButton = that.isProgrammableButton(deviceid);
                     accessory = new HE_ST_Accessory(that, group, inDevice, inAccessory);   
                     if (accessory !== undefined) {
                         if (accessory.accessory.services.length <= 1 || accessory.deviceGroup === 'unknown') {
@@ -233,6 +286,7 @@ HE_ST_Platform.prototype = {
                 that.log('polling_seconds really shouldn\'t be smaller than 30 seconds. Setting it to 30 seconds');
                 that.polling_seconds = 30;
             }
+            that.removeDeviceAttributeUsage('filterundefined');
             setInterval(that.reloadData.bind(that), that.polling_seconds * 1000);
             setInterval(that.doVersionCheck.bind(that), 24 * 60 * 60 * 1000); //60 seconds
             that.receiver.start(that);
@@ -264,21 +318,27 @@ HE_ST_Platform.prototype = {
         var that = this;
         return new Promise(function(resolve, reject) {
             var accessories = [];
-            Object.keys(that.deviceLookup).forEach(function(key) {
-            if (!(that.deviceLookup[key] instanceof HE_ST_Accessory))
-                that.removeAccessory(that.deviceLookup[key]).catch(function(error) {});
-            });
-            Object.keys(that.deviceLookup).forEach(function(key) {
-                if (that.deviceLookup[key].deviceGroup === 'reboot')
-                    return;
-                var unregister = true;
-                for (var i = 0; i < devices.length; i++) {
-                    if (that.deviceLookup[key].accessory.UUID === uuidGen(devices[i].id))
-                        unregister = false;
+            if (that.delete_cache_devices == true)
+                that.log.warn('Deleting all devices as delete_cache_devices is set to true in config!');
+            for (var key in that.deviceLookup) {
+                if (that.deviceLookup.hasOwnProperty(key)) {
+                    if ((!(that.deviceLookup[key] instanceof HE_ST_Accessory)) || (that.delete_cache_devices == true))
+                        that.removeAccessory(that.deviceLookup[key]).catch(function(error) {});
                 }
-                if (unregister)
-                    that.removeAccessory(that.deviceLookup[key]).catch(function(error) {});
-            });
+            }
+            for (var key in that.deviceLookup) {
+                if (that.deviceLookup.hasOwnProperty(key)) {
+                    if (that.deviceLookup[key].deviceGroup === 'reboot')
+                        return;
+                    var unregister = true;
+                    for (var i = 0; i < devices.length; i++) {
+                        if (that.deviceLookup[key].accessory.UUID === uuidGen(devices[i].id))
+                            unregister = false;
+                    }
+                    if (unregister)
+                        that.removeAccessory(that.deviceLookup[key]).catch(function(error) {});
+                }
+            }
             resolve(devices);
         });
     },
@@ -302,15 +362,41 @@ HE_ST_Platform.prototype = {
             resolve(devices);
         });
     },
-    updateDevices: function() {
+    updateDevices: function(devices) {
         var that = this;
         return new Promise(function(resolve, reject) {
-            if (!that.firstpoll) {
+            if ((that.communication_broken) && (!that.firstpoll)) {
+                that.log('Updating attrbutes via HTTP');
+                for (var i = 0; i < devices.length; i++) {
+                    if (devices[i].type !== undefined) {
+                        if (that.deviceLookup[uuidGen(devices[i].data.deviceid)] instanceof HE_ST_Accessory)
+                        {
+                            var accessory = that.deviceLookup[uuidGen(devices[i].data.deviceid)];
+                            accessory.updateAttributes(devices[i].data, that);
+                        }
+                    } else {
+                        he_st_api.getDeviceInfo(devices[i].id)
+                            .then(function(data) {
+                                if (that.deviceLookup[uuidGen(data.deviceid)] instanceof HE_ST_Accessory)
+                                {
+                                    var accessory = that.deviceLookup[uuidGen(data.deviceid)];
+                                    accessory.updateAttributes(data, that);
+                                    //accessory.loadData(devices[i]);
+                                }    
+                            }).catch(function(error) {
+                                that.log.error(error);
+                            });
+                    }
+                }   
+            }
+            if(!that.firstpoll) { 
                 var updateAccessories = [];
-                Object.keys(that.deviceLookup).forEach(function(key) {
-                    if (that.deviceLookup[key] instanceof HE_ST_Accessory)
-                        updateAccessories.push(that.deviceLookup[key].accessory);
-                });
+                for (var key in that.deviceLookup) {
+                    if (that.deviceLookup.hasOwnProperty(key)) {
+                        if (that.deviceLookup[key] instanceof HE_ST_Accessory)
+                            updateAccessories.push(that.deviceLookup[key].accessory);
+                    }
+                }
                 if (updateAccessories.length)
                     that.hb_api.updatePlatformAccessories(updateAccessories);
             }
@@ -359,7 +445,7 @@ HE_ST_Platform.prototype = {
                         mode.commands = {};
                         mode.excludedAttributes = ["None"];
                         mode.excludedCapabilities = ["None"];
-                        myList.push( {id: mode.deviceid, name: mode.label, label: mode.label, type: 'mode', data: mode});
+                        myList.push( {id: mode.deviceid, name: mode.label, label: mode.label, type: 'mode', data: mode} );
                     }
                     return myList;
                 });
@@ -398,10 +484,11 @@ HE_ST_Platform.prototype = {
         }).then(function(myList) {
             return that.populateDevices(myList);
         }).then(function(myList) {
-            return that.updateDevices();
+            return that.updateDevices(myList);
         }).then(function(myList) {
             if (callback)
                 callback(foundAccessories);
+            that.setCommunicationBroken(false).then(function() {}).catch(function(){});
             that.firstpoll = false;
         }).catch(function(error) {
             if (error.hasOwnProperty('statusCode'))
@@ -428,6 +515,9 @@ HE_ST_Platform.prototype = {
                 that.log.error('Received an error trying to get the device summary information from Hubitat.', error);
             }
             that.log.error('I am stopping my reload here and hope eveything fixes themselves (e.g. a firmware update of HE is rebooting the hub');
+            that.setCommunicationBroken(true).then(function() {}).catch(function(){});
+            if (callback)
+                callback(null);
         });
     },
     configureAccessory: function (accessory) {
@@ -609,6 +699,14 @@ HE_ST_Platform.prototype = {
         var that = this;
         callback([]);
     },
+    dumpAttributeDevices: function(attribute) {
+        if (!this.attributeLookup[attribute])
+            platform.log.debug('Attribute ' + attribute + ' is not used at all');
+        else
+            for (k in this.attributeLookup[attribute]) {
+                platform.log.debug('Attribute ' + attribute + ' is defined for device id ' + k);
+            }
+    },
     isAttributeUsed: function(attribute, deviceid) {
         if (!this.attributeLookup[attribute])
             return false;
@@ -627,11 +725,12 @@ HE_ST_Platform.prototype = {
     },
     removeDeviceAttributeUsage: function(deviceid) {
         var that = this;
-        Object.entries(that.attributeLookup).forEach((entry) => {
-            const [key, value] = entry;
-            if (that.attributeLookup[key].hasOwnProperty(deviceid))
-                delete that.attributeLookup[key][deviceid];
-        });
+        for (var key in that.attributeLookup) {
+            if (that.attributeLookup.hasOwnProperty(key)) {
+                if (that.attributeLookup[key].hasOwnProperty(deviceid))
+                    delete that.attributeLookup[key][deviceid];
+            }
+        }
     },
     getAttributeValue: function(attribute, deviceid, that) {
         if (!(that.attributeLookup[attribute] && that.attributeLookup[attribute][deviceid])) {
@@ -647,6 +746,12 @@ HE_ST_Platform.prototype = {
             }
         }
     },
+    isProgrammableButton: function(deviceId) {
+        var that = this;
+        if (that.programmable_buttons.includes(String(deviceId)))
+            return true;
+        return false;
+    },
     processFieldUpdate: function(attributeSet, that) {
         if (!(that.attributeLookup[attributeSet.attribute] && that.attributeLookup[attributeSet.attribute][attributeSet.device])) {
             return;
@@ -657,7 +762,14 @@ HE_ST_Platform.prototype = {
                 var accessory = that.deviceLookup[uuidGen(attributeSet.device)];
                 if (accessory) {
                     accessory.device.attributes[attributeSet.attribute] = attributeSet.value;
-                    myUsage[j].getValue();
+                    if ((attributeSet.attribute === 'pushed') && platform.isProgrammableButton(attributeSet.device))
+                        myUsage[j].updateValue(Characteristic.ProgrammableSwitchEvent.SINGLE_PRESS);
+                    else if ((attributeSet.attribute === 'doubleTapped') && platform.isProgrammableButton(attributeSet.device))
+                        myUsage[j].updateValue(Characteristic.ProgrammableSwitchEvent.DOUBLE_PRESS);
+                    else if ((attributeSet.attribute === 'held') && platform.isProgrammableButton(attributeSet.device))
+                        myUsage[j].updateValue(Characteristic.ProgrammableSwitchEvent.LONG_PRESS);
+                    else
+                        myUsage[j].getValue();
                 }
             }
         }
@@ -677,4 +789,3 @@ function getIPAddress() {
     }
     return '0.0.0.0';
 }
-

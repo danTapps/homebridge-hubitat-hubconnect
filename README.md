@@ -4,9 +4,14 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.2.11```**
+**```Current App version: 0.3.0```**
 
-<br>
+##### Table of Contents  
+**[Change Log](#change-log)**<br>
+**[Installation](#installation)**<br>
+**[Configuration File Parameters](#configuration-file-parameters)**<br>
+**[Attribute Filtering](#attribute-filtering)**<br>
+**[Troubleshooting](#troubleshooting)**<br>
 
 # Change Log:
 
@@ -29,7 +34,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.2.9*** Added some debug for fans....,Fixed garage door implementation and set obstruction when status is unknown/stopped,Added "debug" mode to see calls to MakerAPI in output. See description below on how to enable it, Added ability to write logging to file<br>
 ***v0.2.10*** Fixed rounding issue with thermostats in auto mode<br>
 ***v0.2.11*** Added thermostat fan switch support (thanks @swiss6th), added ping/pong for websockets (thanks @asj)<br>
-
+***v0.3.0*** Device updates retrieved via websocket, Added thermostat fan switch support, Added support for colorTemperature bulbs, Fixed thermostat low battery warnings, fixed iOS13 duplicate calling of setThermostatOperationgMode, Added Button support, limited to "push" for 1 button, see "programmable_buttons" for advanced programmable button support (thanks to @swiss6th for the code base), Added automatic detection of free port, Added diagnostic website hosted by plugin to see/download log files and enable debug logging, implemented new support interface for HubConnect 1.5
 # Explanation:
 
 ### Direct Updates
@@ -60,11 +65,14 @@ Installation comes in two parts:
 
 ## 3. Homebridge Plugin Installation:
 
- 1. Install homebridge using: ```npm i -g homebridge``` (For Homebridge Install: [Homebridge Instructions](https://github.com/nfarina/homebridge/blob/master/README.md))
- 2. Install Hubitat plugin using: ```npm i -g homebridge-hubitat-hubconnect```
- 3. Update your configuration file. See sample config.json snippet below.
+ 1. Install homebridge using: ```sudo npm i -g homebridge``` (For Homebridge Install: [Homebridge Instructions](https://github.com/nfarina/homebridge/blob/master/README.md))
+ 2. Install Hubitat plugin using: ```sudo npm i -g homebridge-hubitat-hubconnect```
+ 3. Create your config.json configuration file. The config.json file has to be stored in the folder ~/.homebridge
+ 4. To help creating your inital configuration file, **<a href="https://dantapps.github.io" target="_blank">click here</a>** for some assistance.
+ 5. Start homebridge using the command: ```homebridge```
 
-  <h3 style="padding: 0em .6em;">Config.json Settings Example</h3>
+
+ # Configuration File Parameters
 
   <h4 style="padding: 0em .6em; margin-bottom: 5px;"><u>Example of all settings. Not all settings are required. Read the breakdown below</u></h4>
 
@@ -72,12 +80,16 @@ Installation comes in two parts:
    <span style="color: #f92672">&quot;platform&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;Hubitat-HubConnect&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;name&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;Hubitat&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;hubconnect_key&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;THIS-SHOULD-BE-YOUR-CONNECTION-KEY&quot;</span><span style="color: #f8f8f2">,</span>
-   <span style="color: #f92672">&quot;mode_switches&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_ip&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">&quot;10.0.0.70&quot;</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;local_port&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">20009</span><span style="color: #f8f8f2">,</span>
-   <span style="color: #f92672">&quot;hsm&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #ae81ff">true</span><span style="color: #f8f8f2">,</span>
-   <span style="color: #f92672">&quot;debug&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">false</span><span style="color: #f8f8f2">,</span>
    <span style="color: #f92672">&quot;temperature_unit&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">"F"</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;mode_switches&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;hsm&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">true</span><span style="color: #f8f8f2">,</span>   
+   <span style="color: #f92672">&quot;debug&quot;</span><span style="color: #f8f8f2">:</span> <span style="color: #e6db74">false</span><span style="color: #f8f8f2">,</span>
+   <span style="color: #f92672">&quot;programmable_buttons&quot;</span><span style="color: #f8f8f2">: [</span>
+   <span style="color: orange">     &quot;97&quot;</span><span style="color: #f8f8f2">,</span>
+   <span style="color: orange">     &quot;98&quot;</span><span style="color: #f8f8f2"></span>
+   <span style="color: #f8f8f2">],</span>
    <span style="color: #f92672">&quot;excluded_attributes&quot;</span><span style="color: #f8f8f2">: {</span>
    <span style="color: lightblue">    &quot;HUBITAT-DEVICE-ID-1&quot;</span><span style="color: #f8f8f2">: [</span>
    <span style="color: orange">       &quot;power&quot;</span><span style="color: #f8f8f2">,</span>
@@ -101,9 +113,6 @@ Installation comes in two parts:
  * <p><u>app_url</u> & <u>hubconnect_key</u>  <small style="color: orange; font-weight: 600;"><i>Required</i></small><br>
     This is the HubConnect Connection Key to allow to retrieve the connection paramters to the HubConnect App.</small></p>
 
- * <p><u>mode_switches</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
-    Creates virtual switches to contol Hubitat Modes. Possible values true|false. Default is false</small></p>
-
  * <p><u>local_ip</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
     Defaults to first available IP on your computer<br><small style="color: gray;">Most installations won't need this, but if for any reason it can't identify your ip address correctly, use this setting to force the IP presented to Hubitat for the hub to send to.</small></p>
 
@@ -113,12 +122,17 @@ Installation comes in two parts:
  * <p><u>excluded_attributes</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
    Defaults to None<br>Specify the Hubitat device by ID and the associated attributes you want homebridge-hubitat-makerapi to ignore. This prevents a Hubitat device from creating unwanted or redundant HomeKit accessories</small></p>
 
- * <p><u>hsm</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
-   Defaults to False<br>Creates a Alarm System icon in Homekit and allows your to arm and disarm your HSM</small></p>
+* <p><u>programmable_buttons</u>  <small style="color: #f92672; font-weight: 600;"><i>Optional</i></small><br>
+   Defaults to None<br>By default, pressing Buttons in Homekit trigger a "pushed" event for button number 1 in Hubitat. The setting "programmable_buttons" allows Hubitat to trigger HomeKit specific scenes. You can assign scenes to three types of events: Pushed, Held and DoubleTapped. This can be helpful to interact with Homekit only devices. E.g. a button press in HE can trigger a HomeKit only lock to lock. Note: there is no feedback if the Homekit scene was executed successfully or not. Specify the Hubitat device by ID in this setting to create a programmable button.</small></p>
 
  * <p><u>temperature_unit</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
     Default to F<br>Ability to configure between Celsius and Fahrenheit. Possible values: "F" or "C"</small></p>
 
+ * <p><u>mode_switches</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+    Default to false<br>Create switches for modes and ability to switch modes by enabling such switches Possible values: true or false<br>Requires HE fimrware 2.0.9 or newer</p>
+
+ * <p><u>hsm</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
+    Default to false<br>Integrates HSM into Home app and allow to arm/disarm the hsm and receive notifications on intrusions<br>Requires HE firmware 2.0.9 or newer</p>
 
  * <p><u>debug</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
     Default to false<br>Enables debugging of HTTP calls to MakerAPI to troubleshoot issues</p>
@@ -127,7 +141,7 @@ Installation comes in two parts:
     Settings to enable logging to file. Uses winston logging facility 
 
    * <p><u>enabled</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
-      Enable logging to file. Default is false. Set to true to enable file logging
+      Enable logging to file. Default is true. Set to true to enable file logging
 
    * <p><u>path</u>  <small style="color: orange; font-weight: 600;"><i>Optional</i></small><br>
       Path to store log files. Defaults to path where config.json is stored - Only applicable if logFile -> enable is set to true
@@ -182,4 +196,12 @@ To do so, you would add the following configuration to your config.json:
    <span style="color: #f8f8f2">    ]</span>
    <span style="color: #f8f8f2">}</span>
 </pre></div>
+
+# Troubleshooting
+With version ***v0.3.0*** a plugin dashboard is available to help troubeshooting.
+The dashboard is a website that can be reached while homebridge and the plugin are running.
+To reach the dashboard, you can follow these steps:
+1. Open a browser and go to the URL http://[IF-OF-HOMEBRIDGE-SERVER]:[LOCAL-PORT-OF-THIS-PLUGIN]/
+2. You will see a view like this, showing you the logging output of the plugin, the ability to download the log-file to your computer, enablign, disabling debug mode and see your current configuration
+![alt text](https://raw.githubusercontent.com/danTapps/homebridge-hubitat-hubconnect/dev/images/dashboard.png "Dashboard")
 
