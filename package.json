@@ -32,7 +32,7 @@
     "homebridge",
     "hubconnect"
   ],
-  "license": "ISC",
+  "license": "Apache 2.0",
   "name": "homebridge-hubitat-hubconnect",
   "preferGlobal": true,
   "repository": {
