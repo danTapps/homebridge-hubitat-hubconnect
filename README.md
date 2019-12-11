@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.3.7```**
+**```Current App version: 0.3.8```**
 
 ##### Table of Contents  
 **[Change Log](#change-log)**<br>
@@ -37,6 +37,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.3.5*** Device updates retrieved via websocket, Added thermostat fan switch support, Added support for colorTemperature bulbs, Fixed thermostat low battery warnings, fixed iOS13 duplicate calling of setThermostatOperationgMode, Added Button support, limited to "push" for 1 button, see "programmable_buttons" for advanced programmable button support (thanks to @swiss6th for the code base), Added automatic detection of free port, Added diagnostic website hosted by plugin to see/download log files and enable debug logging, implemented new support interface for HubConnect 1.5<br>
 ***v0.3.6*** Fixed reset of alarm tile when custom HSM rule alert was cancelled<br>
 ***v0.3.7*** Escape mode names with special characters in set command<br>
+***v0.3.8*** Removed trailing / from url reported to HubConnect<br>
 # Explanation:
 
 ### Direct Updates
