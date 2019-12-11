@@ -47,6 +47,12 @@ function HE_ST_Platform(log, config, api) {
         return null;
     }
     var logFileSettings = null;
+    if (config.disabled === true)
+    {
+        this.disabled = true;
+        log('Plugin disabled by config');
+        return null;
+    }
 
     if (config['logFile']) {
         if (config['logFile'].enabled) {
