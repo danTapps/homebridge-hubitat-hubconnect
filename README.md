@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.3.8```**
+**```Current App version: 0.3.9```**
 
 ##### Table of Contents  
 **[Change Log](#change-log)**<br>
@@ -38,6 +38,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.3.6*** Fixed reset of alarm tile when custom HSM rule alert was cancelled<br>
 ***v0.3.7*** Escape mode names with special characters in set command<br>
 ***v0.3.8*** Removed trailing / from url reported to HubConnect<br>
+***v0.3.9*** Fixed button push exceptions<br>
 # Explanation:
 
 ### Direct Updates
