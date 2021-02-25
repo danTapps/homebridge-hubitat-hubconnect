@@ -4,7 +4,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 
 [![npm version](https://badge.fury.io/js/homebridge-hubitat-hubconnect.svg)](https://badge.fury.io/js/homebridge-hubitat-hubconnect)
 
-**```Current App version: 0.3.11```**
+**```Current App version: 0.3.12```**
 
 ##### Table of Contents  
 **[Change Log](#change-log)**<br>
@@ -40,6 +40,7 @@ This is based off of @tonesto7 homebridge-hubitat-tonesto7
 ***v0.3.8*** Removed trailing / from url reported to HubConnect<br>
 ***v0.3.9*** Fixed button push exceptions<br>
 ***v0.3.11*** Fixed tsVersion report<br>
+***v0.3.12*** Validation of values for accessoires to prevent warning messages in Homebridge 1.3<br>
 # Explanation:
 
 ### Direct Updates
